@@ -19,64 +19,6 @@ interface CloudflareResponse<A> {
   readonly errors?: ReadonlyArray<{ readonly message?: string }>;
 }
 
-interface DnsResponse {
-  readonly Status: number;
-  readonly Answer?: ReadonlyArray<{
-    readonly type: number;
-    readonly data: string;
-  }>;
-}
-
-const wait = (milliseconds: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, milliseconds));
-
-const waitForDns = async (
-  challenges: ReadonlyArray<{ readonly hostname: string; readonly key: string }>,
-  timeout: number,
-): Promise<void> => {
-  const records = new Map<string, Set<string>>();
-  for (const { hostname, key } of challenges) {
-    const name = `_acme-challenge.${hostname}`;
-    const keys = records.get(name) ?? new Set<string>();
-    keys.add(key);
-    records.set(name, keys);
-  }
-
-  const deadline = Date.now() + timeout;
-  while (true) {
-    const visible = await Promise.all(
-      [...records].map(async ([name, keys]) => {
-        const query = `name=${encodeURIComponent(name)}&type=TXT`;
-        const responses = await Promise.allSettled([
-          fetch(`https://cloudflare-dns.com/dns-query?${query}`, {
-            headers: { accept: "application/dns-json" },
-          }),
-          fetch(`https://dns.google/resolve?${query}`, {
-            headers: { accept: "application/dns-json" },
-          }),
-        ]);
-        for (const result of responses) {
-          if (result.status === "rejected" || !result.value.ok) continue;
-          const response = await result.value.json() as DnsResponse;
-          if (response.Status !== 0) continue;
-          const values = response.Answer
-            ?.filter((answer) => answer.type === 16)
-            .map((answer) => answer.data.replace(/^"|"$/g, "")) ?? [];
-          if ([...keys].every((key) => values.includes(key))) return true;
-        }
-        return false;
-      }),
-    );
-    if (visible.every(Boolean)) return;
-    const remaining = deadline - Date.now();
-    if (remaining <= 0) {
-      console.warn("DNS challenge records were not visible before the propagation timeout");
-      return;
-    }
-    await wait(Math.min(500, remaining));
-  }
-};
-
 const toPem = (buffer: ArrayBuffer): string => {
   const body = base64Url(new Uint8Array(buffer)).replace(/-/g, "+").replace(/_/g, "/");
   const padded = body + "=".repeat((4 - (body.length % 4)) % 4);
@@ -126,25 +68,7 @@ export class CertificateWorkflow extends WorkflowEntrypoint<Cloudflare.Env, Cert
     if (!updated) throw new Error("Failed to persist certificate state: tunnel or certificate not found");
   }
 
-  async run(event: Readonly<WorkflowEvent<CertificateWorkflowParams>>, step: WorkflowStep) {
-    const params = event.payload;
-    try {
-      return await step.do(
-        "issue certificate",
-        { retries: { limit: 0, delay: 0 } },
-        async () => this.issue(params),
-      );
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error);
-      await step.do("record certificate failure", async () => {
-        await this.update(params.tunnelID, params.certificateID, { type: "failed", reason });
-        return { recorded: true };
-      });
-      return { state: "failed", reason };
-    }
-  }
-
-  private async issue(params: CertificateWorkflowParams) {
+  private async createAcmeClient() {
     if (!env.ACME_EAB_KID || !env.ACME_EAB_HMAC_KEY) {
       throw new Error("ACME_EAB_KID and ACME_EAB_HMAC_KEY are required");
     }
@@ -210,107 +134,220 @@ export class CertificateWorkflow extends WorkflowEntrypoint<Cloudflare.Env, Cert
     const thumbprint = base64Url(
       Uint8Array.from(thumbprintHex.match(/.{2}/g) ?? [], (byte) => Number.parseInt(byte, 16)),
     );
+    return { client, thumbprint };
+  }
 
-    const order = await client.newOrder({
-      identifiers: params.identifiers.map((value) => ({ type: "dns", value })),
-    });
-    const challenges = await Promise.all(
-      order.content.authorizations.map(async (authorizationUrl, index) => {
-        const authorization = await client.getAuthorization(authorizationUrl);
-        const challenge = authorization.content.challenges?.find((item) => item.type === "dns-01");
-        if (!challenge) throw new Error("ACME server did not offer dns-01");
-        const digest = await crypto.subtle.digest(
-          "SHA-256",
-          new TextEncoder().encode(`${challenge.token}.${thumbprint}`),
-        );
-        return {
-          authorizationUrl,
-          challenge,
-          key: base64Url(new Uint8Array(digest)),
-          hostname: params.identifiers[index]!.replace(/^\*\./, ""),
-        };
-      }),
-    );
-    const firstChallenge = challenges[0]!;
-    await this.update(params.tunnelID, params.certificateID, {
-      type: "challenge",
-      token: firstChallenge.challenge.token,
-      key: firstChallenge.key,
-    });
-
-    const endpoint = `https://api.cloudflare.com/client/v4/zones/${env.CLOUDFLARE_ZONE_ID}/dns_records`;
-    const recordIDs = await Promise.all(
-      challenges.map(async ({ hostname, key }) => {
-        const dnsResponse = await fetch(endpoint, {
-          method: "POST",
-          headers: {
-            authorization: `Bearer ${env.CLOUDFLARE_API_TOKEN}`,
-            "content-type": "application/json",
-          },
-          body: JSON.stringify({
-            type: "TXT",
-            name: `_acme-challenge.${hostname}`,
-            content: key,
-            ttl: 60,
-          }),
-        });
-        const dns = (await dnsResponse.json()) as CloudflareResponse<{ id: string }>;
-        if (!dnsResponse.ok || !dns.success) {
-          throw new Error(
-            dns.errors?.map((item) => item.message).filter(Boolean).join(", ") ||
-              "DNS record creation failed",
-          );
-        }
-        return dns.result.id;
-      }),
-    );
-
+  async run(event: Readonly<WorkflowEvent<CertificateWorkflowParams>>, step: WorkflowStep) {
+    const params = event.payload;
+    let recordIDs: string[] = [];
     try {
-      await waitForDns(challenges, Number(env.ACME_DNS_PROPAGATION_TIMEOUT_MS || 10_000));
-      for (const { authorizationUrl, challenge } of challenges) {
-        await client.getChallenge(challenge.url, "POST");
-        let validAuthorization = await client.getAuthorization(authorizationUrl);
-        for (let attempt = 0; validAuthorization.content.status === "pending" && attempt < 30; attempt++) {
-          await wait(5_000);
-          validAuthorization = await client.getAuthorization(authorizationUrl);
-        }
-        if (validAuthorization.content.status !== "valid") {
-          throw new Error(`ACME authorization ended in ${validAuthorization.content.status}`);
-        }
-      }
+      const prepared = await step.do(
+        "prepare acme order and dns",
+        { retries: { limit: 0, delay: 0 } },
+        async () => {
+          const { client, thumbprint } = await this.createAcmeClient();
+          const order = await client.newOrder({
+            identifiers: params.identifiers.map((value) => ({ type: "dns", value })),
+          });
+          const challenges = await Promise.all(
+            order.content.authorizations.map(async (authorizationUrl, index) => {
+              const authorization = await client.getAuthorization(authorizationUrl);
+              const challenge = authorization.content.challenges?.find((item) => item.type === "dns-01");
+              if (!challenge) throw new Error("ACME server did not offer dns-01");
+              const digest = await crypto.subtle.digest(
+                "SHA-256",
+                new TextEncoder().encode(`${challenge.token}.${thumbprint}`),
+              );
+              return {
+                authorizationUrl,
+                challengeUrl: challenge.url,
+                token: challenge.token,
+                key: base64Url(new Uint8Array(digest)),
+                hostname: params.identifiers[index]!.replace(/^\*\./, ""),
+              };
+            }),
+          );
+          const firstChallenge = challenges[0]!;
+          await this.update(params.tunnelID, params.certificateID, {
+            type: "challenge",
+            token: firstChallenge.token,
+            key: firstChallenge.key,
+          });
 
-      if (!order.content.finalize) throw new Error("ACME order has no finalize URL");
-      await client.finalize(order.content.finalize, { csr: base64Url(Uint8Array.from(atob(pemBody(params.csr)), (c) => c.charCodeAt(0))) });
+          const endpoint = `https://api.cloudflare.com/client/v4/zones/${env.CLOUDFLARE_ZONE_ID}/dns_records`;
+          const ids = await Promise.all(
+            challenges.map(async ({ hostname, key }) => {
+              const dnsResponse = await fetch(endpoint, {
+                method: "POST",
+                headers: {
+                  authorization: `Bearer ${env.CLOUDFLARE_API_TOKEN}`,
+                  "content-type": "application/json",
+                },
+                body: JSON.stringify({
+                  type: "TXT",
+                  name: `_acme-challenge.${hostname}`,
+                  content: key,
+                  ttl: 60,
+                }),
+              });
+              const dns = (await dnsResponse.json()) as CloudflareResponse<{ id: string }>;
+              if (!dnsResponse.ok || !dns.success) {
+                throw new Error(
+                  dns.errors?.map((item) => item.message).filter(Boolean).join(", ") ||
+                    "DNS record creation failed",
+                );
+              }
+              return dns.result.id;
+            }),
+          );
 
-      const orderUrl = order.headers.location;
-      if (!orderUrl) throw new Error("ACME order has no location URL");
-      let validOrder = await client.getOrder(orderUrl);
-      for (let attempt = 0; validOrder.content.status === "processing" && attempt < 30; attempt++) {
-        await wait(3_000);
-        validOrder = await client.getOrder(orderUrl);
-      }
-      if (validOrder.content.status !== "valid" || !validOrder.content.certificate) {
-        throw new Error(`ACME order ended in ${validOrder.content.status}`);
-      }
+          if (!order.content.finalize) throw new Error("ACME order has no finalize URL");
+          const orderUrl = order.headers.location;
+          if (!orderUrl) throw new Error("ACME order has no location URL");
 
-      const response = await client.getCertificate(validOrder.content.certificate);
-      const certificates = response.content.map(toPem);
-      const certificate = certificates[0];
-      if (!certificate) throw new Error("ACME response did not contain a certificate");
-      const chain = certificates.slice(1).join("\n");
-      const expiry = new X509Certificate(certificate).notAfter.toISOString();
-      const state = { type: "ready", certificate, chain, expiry } as const;
-      await this.update(params.tunnelID, params.certificateID, state);
-      return state;
-    } finally {
-      await Promise.all(
-        recordIDs.map((recordID) =>
-          fetch(`${endpoint}/${recordID}`, {
-            method: "DELETE",
-            headers: { authorization: `Bearer ${env.CLOUDFLARE_API_TOKEN}` },
-          }).catch(() => undefined),
-        ),
+          return {
+            challenges,
+            recordIDs: ids,
+            finalizeUrl: order.content.finalize,
+            orderUrl,
+          };
+        },
       );
+      recordIDs = [...prepared.recordIDs];
+
+      await step.sleep("wait for dns propagation", "20 seconds");
+
+      await step.do(
+        "trigger acme challenges",
+        { retries: { limit: 0, delay: 0 } },
+        async () => {
+          const { client } = await this.createAcmeClient();
+          for (const { challengeUrl } of prepared.challenges) {
+            await client.getChallenge(challengeUrl, "POST");
+          }
+          return { triggered: prepared.challenges.length };
+        },
+      );
+
+      let authorizationsValid = false;
+      for (let attempt = 0; attempt < 24; attempt++) {
+        const status = await step.do(
+          `poll authorizations ${attempt}`,
+          { retries: { limit: 0, delay: 0 } },
+          async () => {
+            const { client } = await this.createAcmeClient();
+            const statuses: string[] = [];
+            for (const { authorizationUrl } of prepared.challenges) {
+              const authorization = await client.getAuthorization(authorizationUrl);
+              statuses.push(authorization.content.status);
+            }
+            return { statuses };
+          },
+        );
+        if (status.statuses.every((s) => s === "valid")) {
+          authorizationsValid = true;
+          break;
+        }
+        if (
+          status.statuses.some(
+            (s) => s === "invalid" || s === "deactivated" || s === "expired" || s === "revoked",
+          )
+        ) {
+          throw new Error(`ACME authorization ended in ${status.statuses.join(",")}`);
+        }
+        await step.sleep(`wait authorization ${attempt}`, "5 seconds");
+      }
+      if (!authorizationsValid) throw new Error("ACME authorization timed out");
+
+      await step.do(
+        "finalize acme order",
+        { retries: { limit: 0, delay: 0 } },
+        async () => {
+          const { client } = await this.createAcmeClient();
+          await client.finalize(prepared.finalizeUrl, {
+            csr: base64Url(
+              Uint8Array.from(atob(pemBody(params.csr)), (c) => c.charCodeAt(0)),
+            ),
+          });
+          return { finalized: true };
+        },
+      );
+
+      let certificateUrl: string | undefined;
+      for (let attempt = 0; attempt < 24; attempt++) {
+        const orderStatus = await step.do(
+          `poll order ${attempt}`,
+          { retries: { limit: 0, delay: 0 } },
+          async () => {
+            const { client } = await this.createAcmeClient();
+            const order = await client.getOrder(prepared.orderUrl);
+            return {
+              status: order.content.status,
+              certificate: order.content.certificate ?? null,
+            };
+          },
+        );
+        if (orderStatus.status === "valid" && orderStatus.certificate) {
+          certificateUrl = orderStatus.certificate;
+          break;
+        }
+        if (orderStatus.status === "invalid") throw new Error("ACME order ended in invalid");
+        await step.sleep(`wait order ${attempt}`, "3 seconds");
+      }
+      if (!certificateUrl) throw new Error("ACME order timed out waiting for certificate");
+
+      const state = await step.do(
+        "store certificate",
+        { retries: { limit: 0, delay: 0 } },
+        async () => {
+          const { client } = await this.createAcmeClient();
+          const response = await client.getCertificate(certificateUrl!);
+          const certificates = response.content.map(toPem);
+          const certificate = certificates[0];
+          if (!certificate) throw new Error("ACME response did not contain a certificate");
+          const chain = certificates.slice(1).join("\n");
+          const expiry = new X509Certificate(certificate).notAfter.toISOString();
+          const ready = { type: "ready", certificate, chain, expiry } as const;
+          await this.update(params.tunnelID, params.certificateID, ready);
+          return ready;
+        },
+      );
+
+      await step.do("cleanup dns challenge records", async () => {
+        const endpoint = `https://api.cloudflare.com/client/v4/zones/${env.CLOUDFLARE_ZONE_ID}/dns_records`;
+        await Promise.all(
+          recordIDs.map((recordID) =>
+            fetch(`${endpoint}/${recordID}`, {
+              method: "DELETE",
+              headers: { authorization: `Bearer ${env.CLOUDFLARE_API_TOKEN}` },
+            }).catch(() => undefined),
+          ),
+        );
+        return { cleaned: recordIDs.length };
+      });
+
+      return state;
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      if (recordIDs.length) {
+        await step.do("cleanup dns after failure", async () => {
+          const endpoint = `https://api.cloudflare.com/client/v4/zones/${env.CLOUDFLARE_ZONE_ID}/dns_records`;
+          await Promise.all(
+            recordIDs.map((recordID) =>
+              fetch(`${endpoint}/${recordID}`, {
+                method: "DELETE",
+                headers: { authorization: `Bearer ${env.CLOUDFLARE_API_TOKEN}` },
+              }).catch(() => undefined),
+            ),
+          );
+          return { cleaned: recordIDs.length };
+        });
+      }
+      await step.do("record certificate failure", async () => {
+        await this.update(params.tunnelID, params.certificateID, { type: "failed", reason });
+        return { recorded: true };
+      });
+      return { state: "failed", reason };
     }
   }
 }
