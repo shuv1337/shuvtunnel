@@ -13,7 +13,7 @@
     }
   ],
   "vars": {
-    "OPENTUNNEL_DOMAIN": "shuv.zip",
+    "SHUVTUNNEL_DOMAIN": "shuv.zip",
     "ACME_URL": "https://acme.zerossl.com/v2/DV90",
     "ACME_EMAIL": "shuv@shuv.dev",
     "ACME_DNS_PROPAGATION_TIMEOUT_MS": "10000",

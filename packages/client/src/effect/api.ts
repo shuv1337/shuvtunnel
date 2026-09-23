@@ -1,22 +1,22 @@
 import { Effect, Layer, ServiceMap } from "effect";
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http";
 import { HttpApiClient } from "effect/unstable/httpapi";
-import { Api } from "@opentunnel/protocol/api/api";
-import { Tunnel } from "@opentunnel/protocol/tunnel";
+import { Api } from "@shuvtunnel/protocol/api/api";
+import { Tunnel } from "@shuvtunnel/protocol/tunnel";
 
 type Client = HttpApiClient.ForApi<typeof Api>;
 
-interface OpenTunnelApi {
+interface ShuvTunnelApi {
   readonly client: Client;
   readonly authorized: (token: Tunnel.Token) => Effect.Effect<Client>;
 }
 
-export class OpenTunnelApiClient extends ServiceMap.Service<OpenTunnelApiClient, OpenTunnelApi>()(
-  "@opentunnel/client/OpenTunnelApiClient",
+export class ShuvTunnelApiClient extends ServiceMap.Service<ShuvTunnelApiClient, ShuvTunnelApi>()(
+  "@shuvtunnel/client/ShuvTunnelApiClient",
 ) {
   static layer(options: { readonly api: URL | string }) {
     return Layer.effect(
-      OpenTunnelApiClient,
+      ShuvTunnelApiClient,
       Effect.gen(function* () {
         const httpClient = yield* HttpClient.HttpClient;
         const client = yield* HttpApiClient.makeWith(Api, {

@@ -2,13 +2,13 @@ import { Deferred, Effect, Queue, Stream } from "effect";
 import { createConnection, type Socket } from "node:net";
 import { createServer, type Server } from "node:tls";
 import WebSocket from "ws";
-import { BridgeProtocol } from "@opentunnel/protocol/bridge-protocol";
-import { OpenTunnelClientError } from "./errors.js";
+import { BridgeProtocol } from "@shuvtunnel/protocol/bridge-protocol";
+import { ShuvTunnelClientError } from "./errors.js";
 import type {
-  OpenTunnelClientEvent,
-  OpenTunnelConnection,
-  OpenTunnelIdentity,
-  OpenTunnelRoute,
+  ShuvTunnelClientEvent,
+  ShuvTunnelConnection,
+  ShuvTunnelIdentity,
+  ShuvTunnelRoute,
 } from "./types.js";
 
 interface Channel {
@@ -33,18 +33,18 @@ const routeName = (sni: string, hostname: string): string | undefined => {
   return route && !route.includes(".") ? route : undefined;
 };
 
-export const connectBridge = Effect.fn("OpenTunnelClient.connectBridge")(function* (options: {
+export const connectBridge = Effect.fn("ShuvTunnelClient.connectBridge")(function* (options: {
   readonly api: URL;
-  readonly identity: OpenTunnelIdentity;
-  readonly routes: ReadonlyArray<OpenTunnelRoute>;
+  readonly identity: ShuvTunnelIdentity;
+  readonly routes: ReadonlyArray<ShuvTunnelRoute>;
 }) {
   if (options.routes.length === 0) {
-    return yield* new OpenTunnelClientError({ message: "At least one route is required" });
+    return yield* new ShuvTunnelClientError({ message: "At least one route is required" });
   }
 
-  const events = yield* Queue.unbounded<OpenTunnelClientEvent>();
+  const events = yield* Queue.unbounded<ShuvTunnelClientEvent>();
   const closed = yield* Deferred.make<void>();
-  const emit = (event: OpenTunnelClientEvent) => {
+  const emit = (event: ShuvTunnelClientEvent) => {
     Effect.runFork(Queue.offer(events, event));
   };
 
@@ -92,7 +92,7 @@ export const connectBridge = Effect.fn("OpenTunnelClient.connectBridge")(functio
           };
           socket.on("message", attached);
         }),
-      catch: (cause) => new OpenTunnelClientError({ message: "Failed to attach bridge", cause }),
+      catch: (cause) => new ShuvTunnelClientError({ message: "Failed to attach bridge", cause }),
     }),
     (socket) => Effect.sync(() => socket.close()),
   );
@@ -224,5 +224,5 @@ export const connectBridge = Effect.fn("OpenTunnelClient.connectBridge")(functio
     events: Stream.fromQueue(events),
     closed: Deferred.await(closed),
     close: Effect.sync(() => bridge.close()),
-  } satisfies OpenTunnelConnection;
+  } satisfies ShuvTunnelConnection;
 });

@@ -1,6 +1,6 @@
-# OpenTunnel Protocol
+# ShuvTunnel Protocol
 
-Shared OpenTunnel wire contracts:
+Shared ShuvTunnel wire contracts:
 
 - Tunnel, certificate, and CSR schemas
 - Bridge control messages and binary framing

@@ -1,6 +1,6 @@
-# OpenTunnel Server
+# ShuvTunnel Server
 
-This package is the complete hosted OpenTunnel application:
+This package is the complete hosted ShuvTunnel application:
 
 - HTTP control API
 - inbound Spectrum TCP handler

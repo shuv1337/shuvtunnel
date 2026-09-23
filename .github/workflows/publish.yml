@@ -11,8 +11,11 @@ concurrency:
 permissions: {}
 
 jobs:
+  # Publishing the shuvtunnel npm package is opt-in: set the repository variable
+  # SHUVTUNNEL_NPM_PUBLISH=true after configuring npm trusted publishing.
   select-mode:
     name: Select mode
+    if: github.repository == 'shuv1337/shuvtunnel' && vars.SHUVTUNNEL_NPM_PUBLISH == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read

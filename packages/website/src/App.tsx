@@ -8,12 +8,12 @@ import { Justified } from "./Justified"
 import { Ink } from "./Ink"
 import { Splatter } from "./Splatter"
 
-const github = "https://github.com/anomalyco/opentunnel"
+const github = "https://github.com/shuv1337/shuvtunnel"
 
 const installs = {
-  npm: "npm i -g opentunnel",
-  bun: "bun add -g opentunnel",
-  pnpm: "pnpm add -g opentunnel",
+  npm: "npm i -g shuvtunnel",
+  bun: "bun add -g shuvtunnel",
+  pnpm: "pnpm add -g shuvtunnel",
 } as const
 type Manager = keyof typeof installs
 
@@ -56,12 +56,12 @@ export function App() {
 
       <section className="usage">
         <h2>cli</h2>
-        <pre>{`$ opentunnel create\n`}{out("created f7a2mx4kq9vn.opentunnel.xyz")}{`\n\n$ opentunnel route add opencode localhost:47365\n`}{out("added route opencode.f7a2mx4kq9vn.opentunnel.xyz -> localhost:47365")}{`\n\n$ curl https://opencode.f7a2mx4kq9vn.opentunnel.xyz\n`}{out("hello from localhost:47365")}</pre>
+        <pre>{`$ shuvtunnel create\n`}{out("created f7a2mx4kq9vn.shuv.zip")}{`\n\n$ shuvtunnel route add opencode localhost:47365\n`}{out("added route opencode.f7a2mx4kq9vn.shuv.zip -> localhost:47365")}{`\n\n$ curl https://opencode.f7a2mx4kq9vn.shuv.zip\n`}{out("hello from localhost:47365")}</pre>
       </section>
 
       <section className="sdk">
         <h2>sdk</h2>
-        <pre>{`import { create } from "@opentunnel/client"
+        <pre>{`import { create } from "@shuvtunnel/client"
 
 const client = create()
 
@@ -73,13 +73,13 @@ await client.route.add({
 const connection = await client.tunnel.connect()
 
 console.log(connection.routes[0].hostname)
-`}{out("opencode.f7a2mx4kq9vn.opentunnel.xyz")}</pre>
+`}{out("opencode.f7a2mx4kq9vn.shuv.zip")}</pre>
       </section>
 
       <section className="how">
         <h2>how it works</h2>
         <ol className="steps">
-          <li><Justified text="opentunnel create reserves your hostname and generates a private key on your machine. the key never leaves it." /></li>
+          <li><Justified text="shuvtunnel create reserves your hostname and generates a private key on your machine. the key never leaves it." /></li>
           <li><Justified text="the cli sends a certificate request for that hostname. a certificate is issued and bound to your tunnel name. the relay only ever sees the public half." /></li>
           <li><Justified text="a service on your machine opens an encrypted bridge to the relay." /></li>
           <li><Justified text="visitors hit your public url. the relay reads only the hostname from the tls handshake and forwards the encrypted stream through the bridge." /></li>

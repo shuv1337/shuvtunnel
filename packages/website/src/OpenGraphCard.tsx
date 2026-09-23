@@ -34,7 +34,7 @@ export function OpenGraphCard() {
         <li><ArrowsLeftRight size={48} weight="thin" /><b>relay</b></li>
         <li><LockSimple size={48} weight="thin" /><b>end to end</b></li>
       </ul>
-      <div className="og-foot"><span>opentunnel.xyz</span><Barcode text="OPENTUNNEL.XYZ" height={22} className="og-barcode" /></div>
+      <div className="og-foot"><span>shuv.zip</span><Barcode text="SHUV.ZIP" height={22} className="og-barcode" /></div>
     </div>
   </div>
 }

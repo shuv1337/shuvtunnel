@@ -3,15 +3,15 @@ import { HttpApiMiddleware, HttpApiSecurity } from "effect/unstable/httpapi";
 import { Tunnel } from "../tunnel.js";
 import { UnauthorizedError } from "./errors.js";
 
-export class OpenTunnelAuthorizationToken extends ServiceMap.Service<
-  OpenTunnelAuthorizationToken,
+export class ShuvTunnelAuthorizationToken extends ServiceMap.Service<
+  ShuvTunnelAuthorizationToken,
   Tunnel.Token
->()("@opentunnel/protocol/OpenTunnelAuthorizationToken") {}
+>()("@shuvtunnel/protocol/ShuvTunnelAuthorizationToken") {}
 
-export class OpenTunnelAuthorization extends HttpApiMiddleware.Service<
-  OpenTunnelAuthorization,
-  { provides: OpenTunnelAuthorizationToken }
->()("@opentunnel/protocol/OpenTunnelAuthorization", {
+export class ShuvTunnelAuthorization extends HttpApiMiddleware.Service<
+  ShuvTunnelAuthorization,
+  { provides: ShuvTunnelAuthorizationToken }
+>()("@shuvtunnel/protocol/ShuvTunnelAuthorization", {
   security: { bearer: HttpApiSecurity.bearer },
   error: UnauthorizedError,
 }) {}

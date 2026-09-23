@@ -3,7 +3,7 @@ import { createServer } from "node:net";
 const token = process.env.RELAY_TOKEN;
 if (!token) throw new Error("RELAY_TOKEN is required");
 
-const relayUrl = new URL(process.env.RELAY_URL ?? "wss://opentunnel.xyz/api/relay");
+const relayUrl = new URL(process.env.RELAY_URL ?? "wss://shuv.zip/api/relay");
 relayUrl.searchParams.set("token", token);
 const port = Number(process.env.LISTEN_PORT ?? 8443);
 const host = process.env.LISTEN_HOST ?? "127.0.0.1";
@@ -48,5 +48,5 @@ const server = createServer({ allowHalfOpen: true }, (socket) => {
 });
 
 server.listen(port, host, () => {
-  console.log(`OpenTunnel relay listening on ${host}:${port}`);
+  console.log(`ShuvTunnel relay listening on ${host}:${port}`);
 });

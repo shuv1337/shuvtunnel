@@ -3,8 +3,8 @@
 import { NodeRuntime, NodeServices } from "@effect/platform-node";
 import { Console, Effect, Option } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
-import { OpenTunnelClient } from "@opentunnel/client/effect";
-import { loadOpenTunnelConfig, saveOpenTunnelConfig } from "./config.js";
+import { ShuvTunnelClient } from "@shuvtunnel/client/effect";
+import { loadShuvTunnelConfig, saveShuvTunnelConfig } from "./config.js";
 import {
   ensureService,
   reloadService,
@@ -13,7 +13,7 @@ import {
   stopService,
 } from "./service.js";
 
-const root = Command.make("opentunnel").pipe(
+const root = Command.make("shuvtunnel").pipe(
   Command.withDescription("Create and manage blind TLS tunnels"),
   Command.withSharedFlags({
     profile: Flag.string("profile").pipe(
@@ -34,7 +34,7 @@ const create = Command.make(
   Effect.fn(function* ({ name }) {
     const { profile } = yield* root;
     yield* ensureService(profile);
-    const client = yield* OpenTunnelClient;
+    const client = yield* ShuvTunnelClient;
     let waiting = false;
     const tunnel = yield* client.tunnel.create(
       {
@@ -77,10 +77,10 @@ const create = Command.make(
   }),
 ).pipe(Command.withDescription("Create and provision a tunnel"));
 
-const printRoutes = Effect.fn("OpenTunnelCli.route.print")(function* (profile: string) {
-  const client = yield* OpenTunnelClient;
+const printRoutes = Effect.fn("ShuvTunnelCli.route.print")(function* (profile: string) {
+  const client = yield* ShuvTunnelClient;
   const tunnel = yield* client.tunnel.get({ profile });
-  const config = yield* loadOpenTunnelConfig(profile);
+  const config = yield* loadShuvTunnelConfig(profile);
   const routes = Object.entries(config.routes).sort(([left], [right]) =>
     left < right ? -1 : left > right ? 1 : 0,
   );
@@ -106,7 +106,7 @@ const info = Command.make(
   Effect.fn(function* () {
     const { profile } = yield* root;
     yield* ensureService(profile);
-    const client = yield* OpenTunnelClient;
+    const client = yield* ShuvTunnelClient;
     const tunnel = yield* client.tunnel.get({ profile });
 
     if (!tunnel) {
@@ -209,12 +209,12 @@ const routeAdd = Command.make(
     if (!url.hostname || !url.port) {
       return yield* Effect.fail(new Error("Route targets must use host:port"));
     }
-    const config = yield* loadOpenTunnelConfig(profile);
-    yield* saveOpenTunnelConfig(profile, {
+    const config = yield* loadShuvTunnelConfig(profile);
+    yield* saveShuvTunnelConfig(profile, {
       routes: { ...config.routes, [name]: target },
     });
     yield* reloadService(profile);
-    const client = yield* OpenTunnelClient;
+    const client = yield* ShuvTunnelClient;
     const tunnel = yield* client.tunnel.get({ profile });
     yield* Effect.log(`Added route ${tunnel ? `${name}.${tunnel.hostname}` : name} -> ${target}`);
   }),
@@ -226,10 +226,10 @@ const routeRemove = Command.make(
   Effect.fn(function* ({ name }) {
     const { profile } = yield* root;
     yield* ensureService(profile);
-    const config = yield* loadOpenTunnelConfig(profile);
+    const config = yield* loadShuvTunnelConfig(profile);
     const routes = { ...config.routes };
     delete routes[name];
-    yield* saveOpenTunnelConfig(profile, { routes });
+    yield* saveShuvTunnelConfig(profile, { routes });
     yield* reloadService(profile);
     yield* Effect.log(`Removed route ${name}`);
   }),
@@ -253,7 +253,7 @@ const route = Command.make("route").pipe(
 export const cli = root.pipe(Command.withSubcommands([create, serve, service, info, route]));
 
 Command.run(cli, { version: "0.0.0" }).pipe(
-  Effect.provide(OpenTunnelClient.layer()),
+  Effect.provide(ShuvTunnelClient.layer()),
   Effect.provide(NodeServices.layer),
   NodeRuntime.runMain,
 );

@@ -1,10 +1,10 @@
 import "reflect-metadata";
 import { DurableObject, env } from "cloudflare:workers";
 import { Pkcs10CertificateRequest, SubjectAlternativeNameExtension } from "@peculiar/x509";
-import { BridgeProtocol } from "@opentunnel/protocol/bridge-protocol";
-import { Certificate } from "@opentunnel/protocol/certificate";
-import { CSR } from "@opentunnel/protocol/csr";
-import { Tunnel } from "@opentunnel/protocol/tunnel";
+import { BridgeProtocol } from "@shuvtunnel/protocol/bridge-protocol";
+import { Certificate } from "@shuvtunnel/protocol/certificate";
+import { CSR } from "@shuvtunnel/protocol/csr";
+import { Tunnel } from "@shuvtunnel/protocol/tunnel";
 import { concatBytes, parseClientHello } from "./tls-client-hello.js";
 import type { StoredTunnel } from "./stored-tunnel.js";
 import { hashToken } from "./crypto.js";
@@ -242,7 +242,7 @@ export class TunnelObject extends DurableObject<Cloudflare.Env> {
     }
     const protocols = request.headers.get("sec-websocket-protocol")?.split(",").map((x) => x.trim());
     if (!protocols?.includes(BridgeProtocol.WEBSOCKET_SUBPROTOCOL)) {
-      return new Response("Expected opentunnel WebSocket subprotocol", { status: 426 });
+      return new Response("Expected shuvtunnel WebSocket subprotocol", { status: 426 });
     }
 
     const pair = new WebSocketPair();

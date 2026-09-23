@@ -1,39 +1,39 @@
-export * as OpenTunnelStorage from "./storage.js";
+export * as ShuvTunnelStorage from "./storage.js";
 
 import { Effect } from "effect";
 import * as Fs from "node:fs/promises";
 import * as Os from "node:os";
 import * as Path from "node:path";
 import type {
-  OpenTunnelIdentity,
-  OpenTunnelPendingIdentity,
-  OpenTunnelStoredTunnel,
+  ShuvTunnelIdentity,
+  ShuvTunnelPendingIdentity,
+  ShuvTunnelStoredTunnel,
 } from "./types.js";
-import { OpenTunnelStorageError } from "./errors.js";
+import { ShuvTunnelStorageError } from "./errors.js";
 
-export interface OpenTunnelStorage {
-readonly profiles: () => Effect.Effect<ReadonlyArray<string>, OpenTunnelStorageError>;
+export interface ShuvTunnelStorage {
+readonly profiles: () => Effect.Effect<ReadonlyArray<string>, ShuvTunnelStorageError>;
 readonly load: (
   profile: string,
-) => Effect.Effect<OpenTunnelIdentity | undefined, OpenTunnelStorageError>;
+) => Effect.Effect<ShuvTunnelIdentity | undefined, ShuvTunnelStorageError>;
 readonly save: (
   profile: string,
-  tunnel: OpenTunnelIdentity,
-) => Effect.Effect<void, OpenTunnelStorageError>;
+  tunnel: ShuvTunnelIdentity,
+) => Effect.Effect<void, ShuvTunnelStorageError>;
 readonly loadPending: (
   profile: string,
-) => Effect.Effect<OpenTunnelPendingIdentity | undefined, OpenTunnelStorageError>;
+) => Effect.Effect<ShuvTunnelPendingIdentity | undefined, ShuvTunnelStorageError>;
 readonly savePending: (
   profile: string,
-  tunnel: OpenTunnelPendingIdentity,
-) => Effect.Effect<void, OpenTunnelStorageError>;
-readonly remove: (profile: string) => Effect.Effect<void, OpenTunnelStorageError>;
-readonly list: () => Effect.Effect<ReadonlyArray<OpenTunnelStoredTunnel>, OpenTunnelStorageError>;
+  tunnel: ShuvTunnelPendingIdentity,
+) => Effect.Effect<void, ShuvTunnelStorageError>;
+readonly remove: (profile: string) => Effect.Effect<void, ShuvTunnelStorageError>;
+readonly list: () => Effect.Effect<ReadonlyArray<ShuvTunnelStoredTunnel>, ShuvTunnelStorageError>;
 }
 
-export function memory(): OpenTunnelStorage {
-  const identities = new Map<string, OpenTunnelIdentity>();
-  const pending = new Map<string, OpenTunnelPendingIdentity>();
+export function memory(): ShuvTunnelStorage {
+  const identities = new Map<string, ShuvTunnelIdentity>();
+  const pending = new Map<string, ShuvTunnelPendingIdentity>();
   return {
     profiles: () => Effect.sync(() => [...new Set([...identities.keys(), ...pending.keys()])].sort()),
     load: (profile) => Effect.sync(() => identities.get(profile)),
@@ -54,11 +54,11 @@ export function memory(): OpenTunnelStorage {
   };
 }
 
-export function xdg(options: { readonly env?: NodeJS.ProcessEnv; readonly home?: string } = {}): OpenTunnelStorage {
+export function xdg(options: { readonly env?: NodeJS.ProcessEnv; readonly home?: string } = {}): ShuvTunnelStorage {
   const env = options.env ?? process.env;
   const home = options.home ?? Os.homedir();
   const dataHome = env.XDG_DATA_HOME ?? Path.join(home, ".local", "share");
-  const dataRoot = Path.join(dataHome, "opentunnel");
+  const dataRoot = Path.join(dataHome, "shuvtunnel");
   const profileData = (profile: string) => Path.join(dataRoot, profile);
 
   const readOptional = (path: string) =>
@@ -70,11 +70,11 @@ export function xdg(options: { readonly env?: NodeJS.ProcessEnv; readonly home?:
         if (typeof cause === "object" && cause !== null && "code" in cause && cause.code === "ENOENT") {
           return undefined;
         }
-        return yield* new OpenTunnelStorageError({ message: `Failed to read ${path}`, cause });
+        return yield* new ShuvTunnelStorageError({ message: `Failed to read ${path}`, cause });
       })),
     );
 
-  const profiles = Effect.fn("OpenTunnelStorage.profiles")(function* () {
+  const profiles = Effect.fn("ShuvTunnelStorage.profiles")(function* () {
     const entries = yield* Effect.tryPromise({
         try: () => Fs.readdir(dataRoot, { withFileTypes: true }),
         catch: (cause) => cause,
@@ -83,7 +83,7 @@ export function xdg(options: { readonly env?: NodeJS.ProcessEnv; readonly home?:
           if (typeof cause === "object" && cause !== null && "code" in cause && cause.code === "ENOENT") {
             return [];
           }
-          return yield* new OpenTunnelStorageError({
+          return yield* new ShuvTunnelStorageError({
             message: `Failed to list ${dataRoot}`,
             cause,
           });
@@ -92,7 +92,7 @@ export function xdg(options: { readonly env?: NodeJS.ProcessEnv; readonly home?:
     return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
   });
 
-  const load = Effect.fn("OpenTunnelStorage.load")(function* (profile: string) {
+  const load = Effect.fn("ShuvTunnelStorage.load")(function* (profile: string) {
     const root = profileData(profile);
     const metadata = yield* readOptional(Path.join(root, "tunnel.json"));
     if (!metadata) return undefined;
@@ -103,7 +103,7 @@ export function xdg(options: { readonly env?: NodeJS.ProcessEnv; readonly home?:
       readOptional(Path.join(root, "chain.pem")),
     ]);
     if (!token || !privateKey || !certificate || chain === undefined) {
-      return yield* new OpenTunnelStorageError({
+      return yield* new ShuvTunnelStorageError({
         message: `Incomplete tunnel identity for ${profile}`,
       });
     }
@@ -120,10 +120,10 @@ export function xdg(options: { readonly env?: NodeJS.ProcessEnv; readonly home?:
       certificate,
       chain,
       certificateExpiry: new Date(value.certificateExpiry),
-    } satisfies OpenTunnelIdentity;
+    } satisfies ShuvTunnelIdentity;
   });
 
-  const loadPending = Effect.fn("OpenTunnelStorage.loadPending")(function* (profile: string) {
+  const loadPending = Effect.fn("ShuvTunnelStorage.loadPending")(function* (profile: string) {
     const root = profileData(profile);
     const metadata = yield* readOptional(Path.join(root, "pending.json"));
     if (!metadata) return undefined;
@@ -132,7 +132,7 @@ export function xdg(options: { readonly env?: NodeJS.ProcessEnv; readonly home?:
       readOptional(Path.join(root, "private-key.pem")),
     ]);
     if (!token || !privateKey) {
-      return yield* new OpenTunnelStorageError({
+      return yield* new ShuvTunnelStorageError({
         message: `Incomplete pending tunnel identity for ${profile}`,
       });
     }
@@ -143,7 +143,7 @@ export function xdg(options: { readonly env?: NodeJS.ProcessEnv; readonly home?:
       token: token.trim(),
       privateKey,
       csr: value.csr,
-    } satisfies OpenTunnelPendingIdentity;
+    } satisfies ShuvTunnelPendingIdentity;
   });
 
   return {
@@ -165,7 +165,7 @@ export function xdg(options: { readonly env?: NodeJS.ProcessEnv; readonly home?:
             Fs.writeFile(Path.join(root, "private-key.pem"), tunnel.privateKey, { mode: 0o600 }),
           ]);
         },
-        catch: (cause) => new OpenTunnelStorageError({
+        catch: (cause) => new ShuvTunnelStorageError({
           message: `Failed to save pending tunnel identity for ${profile}`,
           cause,
         }),
@@ -193,7 +193,7 @@ export function xdg(options: { readonly env?: NodeJS.ProcessEnv; readonly home?:
           await Fs.rm(Path.join(root, "pending.json"), { force: true });
         },
         catch: (cause) =>
-          new OpenTunnelStorageError({
+          new ShuvTunnelStorageError({
             message: `Failed to save tunnel identity for ${profile}`,
             cause,
           }),
@@ -202,7 +202,7 @@ export function xdg(options: { readonly env?: NodeJS.ProcessEnv; readonly home?:
       Effect.tryPromise({
         try: () => Fs.rm(profileData(profile), { recursive: true, force: true }),
         catch: (cause) =>
-          new OpenTunnelStorageError({
+          new ShuvTunnelStorageError({
             message: `Failed to remove tunnel identity for ${profile}`,
             cause,
           }),
@@ -216,7 +216,7 @@ export function xdg(options: { readonly env?: NodeJS.ProcessEnv; readonly home?:
             ),
           ),
         ),
-        Effect.map((entries) => entries.filter((entry): entry is OpenTunnelStoredTunnel => entry !== undefined)),
+        Effect.map((entries) => entries.filter((entry): entry is ShuvTunnelStoredTunnel => entry !== undefined)),
       ),
   };
 }

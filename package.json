@@ -1,5 +1,5 @@
 {
-  "name": "@opentunnel/root",
+  "name": "@shuvtunnel/root",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -7,8 +7,9 @@
     "dev": "bun --cwd packages/server run dev",
     "deploy": "bun --cwd packages/server run deploy",
     "cf-typegen": "bun --cwd packages/server run cf-typegen",
-    "opentunnel": "bun packages/cli/src/index.ts",
-    "ready": "bun run --filter '*' build",
+    "shuvtunnel": "bun packages/cli/src/index.ts",
+    "ready": "bun scripts/check-fork-boundary.ts && bun run --filter '*' build && bun scripts/check-fork-boundary.ts --dist",
+    "check:fork": "bun scripts/check-fork-boundary.ts",
     "changeset": "changeset",
     "release": "bun --cwd packages/cli run build && changeset publish"
   },

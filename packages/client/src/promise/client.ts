@@ -1,82 +1,82 @@
 import { Effect, Exit, ManagedRuntime, Scope, Stream } from "effect";
 import {
-  OpenTunnelClient,
-  type OpenTunnelClientOptions as EffectClientOptions,
+  ShuvTunnelClient,
+  type ShuvTunnelClientOptions as EffectClientOptions,
 } from "../effect/client.js";
 import type {
-  OpenTunnelClientEvent,
-  OpenTunnelIdentity,
-  OpenTunnelPendingIdentity,
-  OpenTunnelProfileOptions,
-  OpenTunnelProvisionStage,
-  OpenTunnelRoute,
-  OpenTunnelStoredTunnel,
+  ShuvTunnelClientEvent,
+  ShuvTunnelIdentity,
+  ShuvTunnelPendingIdentity,
+  ShuvTunnelProfileOptions,
+  ShuvTunnelProvisionStage,
+  ShuvTunnelRoute,
+  ShuvTunnelStoredTunnel,
 } from "../effect/types.js";
-import { toEffectStorage, type OpenTunnelStorage } from "./storage.js";
+import { toEffectStorage, type ShuvTunnelStorage } from "./storage.js";
 
-export interface OpenTunnelClientOptions {
+export interface ShuvTunnelClientOptions {
   readonly api?: URL | string;
-  readonly store?: OpenTunnelStorage;
+  readonly store?: ShuvTunnelStorage;
 }
 
-export interface OpenTunnelConnection {
-  readonly tunnel: OpenTunnelIdentity;
-  readonly routes: ReadonlyArray<OpenTunnelRoute>;
-  readonly events: AsyncIterable<OpenTunnelClientEvent>;
+export interface ShuvTunnelConnection {
+  readonly tunnel: ShuvTunnelIdentity;
+  readonly routes: ReadonlyArray<ShuvTunnelRoute>;
+  readonly events: AsyncIterable<ShuvTunnelClientEvent>;
   readonly closed: Promise<void>;
   readonly close: () => Promise<void>;
 }
 
-export interface OpenTunnelPromiseClient {
+export interface ShuvTunnelPromiseClient {
   readonly profile: {
     readonly list: () => Promise<ReadonlyArray<string>>;
   };
   readonly route: {
-    readonly list: (options?: OpenTunnelProfileOptions) => Promise<ReadonlyArray<OpenTunnelRoute>>;
+    readonly list: (options?: ShuvTunnelProfileOptions) => Promise<ReadonlyArray<ShuvTunnelRoute>>;
     readonly add: (
-      options: OpenTunnelProfileOptions & { readonly name: string; readonly target: string },
-    ) => Promise<OpenTunnelRoute>;
+      options: ShuvTunnelProfileOptions & { readonly name: string; readonly target: string },
+    ) => Promise<ShuvTunnelRoute>;
     readonly remove: (
-      options: OpenTunnelProfileOptions & { readonly name: string },
+      options: ShuvTunnelProfileOptions & { readonly name: string },
     ) => Promise<void>;
   };
   readonly tunnel: {
-    readonly list: () => Promise<ReadonlyArray<OpenTunnelStoredTunnel>>;
-    readonly get: (options?: OpenTunnelProfileOptions) => Promise<OpenTunnelIdentity | undefined>;
+    readonly list: () => Promise<ReadonlyArray<ShuvTunnelStoredTunnel>>;
+    readonly get: (options?: ShuvTunnelProfileOptions) => Promise<ShuvTunnelIdentity | undefined>;
     readonly pending: (
-      options?: OpenTunnelProfileOptions,
-    ) => Promise<Pick<OpenTunnelPendingIdentity, "id" | "hostname"> | undefined>;
+      options?: ShuvTunnelProfileOptions,
+    ) => Promise<Pick<ShuvTunnelPendingIdentity, "id" | "hostname"> | undefined>;
     readonly resume: (
-      options?: OpenTunnelProfileOptions & {
-        readonly onProgress?: (stage: OpenTunnelProvisionStage) => void;
+      options?: ShuvTunnelProfileOptions & {
+        readonly onProgress?: (stage: ShuvTunnelProvisionStage) => void;
       },
-    ) => Promise<OpenTunnelIdentity | undefined>;
+    ) => Promise<ShuvTunnelIdentity | undefined>;
     readonly create: (
-      options?: OpenTunnelProfileOptions & {
+      options?: ShuvTunnelProfileOptions & {
         readonly name?: string;
-        readonly onProgress?: (stage: OpenTunnelProvisionStage) => void;
+        readonly onProgress?: (stage: ShuvTunnelProvisionStage) => void;
       },
-    ) => Promise<OpenTunnelIdentity>;
+    ) => Promise<ShuvTunnelIdentity>;
     readonly ensure: (
-      options?: OpenTunnelProfileOptions & { readonly name?: string },
-    ) => Promise<OpenTunnelIdentity>;
-    readonly remove: (options?: OpenTunnelProfileOptions) => Promise<void>;
+      options?: ShuvTunnelProfileOptions & { readonly name?: string },
+    ) => Promise<ShuvTunnelIdentity>;
+    readonly remove: (options?: ShuvTunnelProfileOptions) => Promise<void>;
     readonly connect: (
-      options?: OpenTunnelProfileOptions & { readonly signal?: AbortSignal },
-    ) => Promise<OpenTunnelConnection>;
+      options?: ShuvTunnelProfileOptions & { readonly signal?: AbortSignal },
+    ) => Promise<ShuvTunnelConnection>;
   };
   readonly dispose: () => Promise<void>;
 }
 
-export function create(options: OpenTunnelClientOptions = {}): OpenTunnelPromiseClient {
+export function create(options: ShuvTunnelClientOptions = {}): ShuvTunnelPromiseClient {
   const effectOptions: EffectClientOptions = {
     api: options.api,
     ...(options.store ? { storage: toEffectStorage(options.store) } : {}),
   };
-  const runtime = ManagedRuntime.make(OpenTunnelClient.layer(effectOptions));
+  const runtime = ManagedRuntime.make(ShuvTunnelClient.layer(effectOptions));
   const withClient = <A, E>(
-    f: (client: OpenTunnelClient["Service"]) => Effect.Effect<A, E>,
-  ) => runtime.runPromise(Effect.flatMap(OpenTunnelClient.asEffect(), f));
+    f: (client: ShuvTunnelClient["Service"]) => Effect.Effect<A, E>,
+  ) => runtime.runPromise(Effect.flatMap(ShuvTunnelClient.asEffect(), f));
 
   return {
     profile: { list: () => withClient((client) => client.profile.list()) },
@@ -96,7 +96,7 @@ export function create(options: OpenTunnelClientOptions = {}): OpenTunnelPromise
       connect: async (input) => {
         const scope = await runtime.runPromise(Scope.make());
         const connection = await runtime.runPromise(
-          Effect.flatMap(OpenTunnelClient.asEffect(), (client) => client.tunnel.connect(input)).pipe(
+          Effect.flatMap(ShuvTunnelClient.asEffect(), (client) => client.tunnel.connect(input)).pipe(
             Effect.provideService(Scope.Scope, scope),
           ),
         );

@@ -15,7 +15,7 @@ import type { TrackReport } from "./track/page"
 
 const args = process.argv.slice(2)
 const option = (name: string) => args.includes(name) ? args[args.indexOf(name) + 1] : undefined
-const out = option("--out") ?? join(tmpdir(), "opentunnel-track")
+const out = option("--out") ?? join(tmpdir(), "shuvtunnel-track")
 const seed = Number(option("--seed") ?? 1979)
 const fallback = { enter: .19, leave: .73 }
 

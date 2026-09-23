@@ -1,12 +1,12 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "opentunnel-website",
+  "name": "shuvtunnel-website",
   "compatibility_date": "2026-08-08",
   "workers_dev": false,
   "routes": [
     {
-      "pattern": "opentunnel.xyz/*",
-      "zone_name": "opentunnel.xyz"
+      "pattern": "shuv.zip/*",
+      "zone_name": "shuv.zip"
     }
   ],
   "assets": {

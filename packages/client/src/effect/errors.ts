@@ -1,13 +1,13 @@
 import { Schema } from "effect";
 
-export class OpenTunnelClientError extends Schema.TaggedErrorClass<OpenTunnelClientError>()(
-  "OpenTunnelClientError",
+export class ShuvTunnelClientError extends Schema.TaggedErrorClass<ShuvTunnelClientError>()(
+  "ShuvTunnelClientError",
   { message: Schema.String, cause: Schema.optional(Schema.Defect) },
 ) {}
 
-export class OpenTunnelStorageError extends Schema.TaggedErrorClass<OpenTunnelStorageError>()(
-  "OpenTunnelStorageError",
+export class ShuvTunnelStorageError extends Schema.TaggedErrorClass<ShuvTunnelStorageError>()(
+  "ShuvTunnelStorageError",
   { message: Schema.String, cause: Schema.optional(Schema.Defect) },
 ) {}
 
-export type OpenTunnelError = OpenTunnelClientError | OpenTunnelStorageError;
+export type ShuvTunnelError = ShuvTunnelClientError | ShuvTunnelStorageError;

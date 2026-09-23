@@ -12,7 +12,7 @@ import {
   ServiceUnavailableError,
   TunnelNotFoundError,
 } from "./errors.js";
-import { OpenTunnelAuthorization } from "./auth.js";
+import { ShuvTunnelAuthorization } from "./auth.js";
 
 export const CreateTunnelRequest = Schema.Struct({
   name: Schema.String.pipe(Schema.optional),
@@ -36,7 +36,7 @@ export const TunnelGroup = HttpApiGroup.make("tunnel")
       params: Schema.Struct({ id: Tunnel.ID }),
       success: Tunnel.Info,
       error: [TunnelNotFoundError, ServiceUnavailableError],
-    }).middleware(OpenTunnelAuthorization),
+    }).middleware(ShuvTunnelAuthorization),
   )
   .add(
     HttpApiEndpoint.post("tunnel.bindCertificate", "/api/tunnel/:id/certificate", {
@@ -50,7 +50,7 @@ export const TunnelGroup = HttpApiGroup.make("tunnel")
         CertificateInProgressError,
         ServiceUnavailableError,
       ],
-    }).middleware(OpenTunnelAuthorization),
+    }).middleware(ShuvTunnelAuthorization),
   )
   .add(
     HttpApiEndpoint.get("tunnel.getCertificate", "/api/tunnel/:id/certificate", {
@@ -61,14 +61,14 @@ export const TunnelGroup = HttpApiGroup.make("tunnel")
         CertificateNotFoundError,
         ServiceUnavailableError,
       ],
-    }).middleware(OpenTunnelAuthorization),
+    }).middleware(ShuvTunnelAuthorization),
   )
   .add(
     HttpApiEndpoint.delete("tunnel.remove", "/api/tunnel/:id", {
       params: Schema.Struct({ id: Tunnel.ID }),
       success: HttpApiSchema.NoContent,
       error: [TunnelNotFoundError, ServiceUnavailableError],
-    }).middleware(OpenTunnelAuthorization),
+    }).middleware(ShuvTunnelAuthorization),
   )
   .add(
     HttpApiEndpoint.get("tunnel.connect", "/api/tunnel/:id/connect", {
@@ -78,7 +78,7 @@ export const TunnelGroup = HttpApiGroup.make("tunnel")
     }).annotateMerge(
       OpenApi.annotations({
         summary: "Connect a bridge WebSocket",
-        description: "This endpoint upgrades to the opentunnel WebSocket protocol.",
+        description: "This endpoint upgrades to the shuvtunnel WebSocket protocol.",
       }),
     ),
   )

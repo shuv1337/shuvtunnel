@@ -1,16 +1,16 @@
 export * as Authorization from "./auth.js";
 
 import { Effect, Layer, Redacted } from "effect";
-import { OpenTunnelAuthorization, OpenTunnelAuthorizationToken } from "@opentunnel/protocol/api/auth";
-import { Tunnel } from "@opentunnel/protocol/tunnel";
+import { ShuvTunnelAuthorization, ShuvTunnelAuthorizationToken } from "@shuvtunnel/protocol/api/auth";
+import { Tunnel } from "@shuvtunnel/protocol/tunnel";
 
 export const layer = Layer.succeed(
-  OpenTunnelAuthorization,
-  OpenTunnelAuthorization.of({
+  ShuvTunnelAuthorization,
+  ShuvTunnelAuthorization.of({
     bearer: (httpEffect, { credential }) =>
       httpEffect.pipe(
         Effect.provideService(
-          OpenTunnelAuthorizationToken,
+          ShuvTunnelAuthorizationToken,
           Tunnel.Token.makeUnsafe(Redacted.value(credential)),
         ),
       ),

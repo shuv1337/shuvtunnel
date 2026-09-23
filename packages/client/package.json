@@ -1,5 +1,5 @@
 {
-  "name": "@opentunnel/client",
+  "name": "@shuvtunnel/client",
   "version": "0.0.0",
   "license": "MIT",
   "type": "module",
@@ -12,7 +12,7 @@
     "build": "tsc --build"
   },
   "dependencies": {
-    "@opentunnel/protocol": "workspace:*",
+    "@shuvtunnel/protocol": "workspace:*",
     "@peculiar/x509": "catalog:",
     "effect": "catalog:",
     "reflect-metadata": "catalog:",

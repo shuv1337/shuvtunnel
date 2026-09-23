@@ -1,11 +1,11 @@
 import type { Effect, Scope, Stream } from "effect";
-import type { OpenTunnelError } from "./errors.js";
+import type { ShuvTunnelError } from "./errors.js";
 
-export interface OpenTunnelProfileOptions {
+export interface ShuvTunnelProfileOptions {
   readonly profile?: string;
 }
 
-export type OpenTunnelProvisionStage =
+export type ShuvTunnelProvisionStage =
   | "creating-tunnel"
   | "generating-key"
   | "generating-csr"
@@ -15,13 +15,13 @@ export type OpenTunnelProvisionStage =
   | "saving-identity"
   | "ready";
 
-export interface OpenTunnelRoute {
+export interface ShuvTunnelRoute {
   readonly name: string;
   readonly hostname: string;
   readonly target: string;
 }
 
-export interface OpenTunnelIdentity {
+export interface ShuvTunnelIdentity {
   readonly id: string;
   readonly hostname: string;
   readonly token: string;
@@ -31,7 +31,7 @@ export interface OpenTunnelIdentity {
   readonly certificateExpiry: Date;
 }
 
-export interface OpenTunnelPendingIdentity {
+export interface ShuvTunnelPendingIdentity {
   readonly id: string;
   readonly hostname: string;
   readonly token: string;
@@ -39,67 +39,67 @@ export interface OpenTunnelPendingIdentity {
   readonly csr: string;
 }
 
-export interface OpenTunnelStoredTunnel {
+export interface ShuvTunnelStoredTunnel {
   readonly profile: string;
-  readonly tunnel: OpenTunnelIdentity;
+  readonly tunnel: ShuvTunnelIdentity;
 }
 
-export type OpenTunnelClientEvent =
+export type ShuvTunnelClientEvent =
   | { readonly type: "connected" }
   | { readonly type: "disconnected"; readonly reason?: string }
   | { readonly type: "route-open"; readonly route: string; readonly connection: number }
   | { readonly type: "route-close"; readonly route: string; readonly connection: number };
 
-export interface OpenTunnelConnection {
-  readonly tunnel: OpenTunnelIdentity;
-  readonly routes: ReadonlyArray<OpenTunnelRoute>;
-  readonly events: Stream.Stream<OpenTunnelClientEvent>;
+export interface ShuvTunnelConnection {
+  readonly tunnel: ShuvTunnelIdentity;
+  readonly routes: ReadonlyArray<ShuvTunnelRoute>;
+  readonly events: Stream.Stream<ShuvTunnelClientEvent>;
   readonly closed: Effect.Effect<void>;
   readonly close: Effect.Effect<void>;
 }
 
-export interface OpenTunnelEffectClient {
+export interface ShuvTunnelEffectClient {
   readonly profile: {
-    readonly list: () => Effect.Effect<ReadonlyArray<string>, OpenTunnelError>;
+    readonly list: () => Effect.Effect<ReadonlyArray<string>, ShuvTunnelError>;
   };
   readonly route: {
     readonly list: (
-      options?: OpenTunnelProfileOptions,
-    ) => Effect.Effect<ReadonlyArray<OpenTunnelRoute>, OpenTunnelError>;
+      options?: ShuvTunnelProfileOptions,
+    ) => Effect.Effect<ReadonlyArray<ShuvTunnelRoute>, ShuvTunnelError>;
     readonly add: (
-      options: OpenTunnelProfileOptions & { readonly name: string; readonly target: string },
-    ) => Effect.Effect<OpenTunnelRoute, OpenTunnelError>;
+      options: ShuvTunnelProfileOptions & { readonly name: string; readonly target: string },
+    ) => Effect.Effect<ShuvTunnelRoute, ShuvTunnelError>;
     readonly remove: (
-      options: OpenTunnelProfileOptions & { readonly name: string },
-    ) => Effect.Effect<void, OpenTunnelError>;
+      options: ShuvTunnelProfileOptions & { readonly name: string },
+    ) => Effect.Effect<void, ShuvTunnelError>;
   };
   readonly tunnel: {
-    readonly list: () => Effect.Effect<ReadonlyArray<OpenTunnelStoredTunnel>, OpenTunnelError>;
+    readonly list: () => Effect.Effect<ReadonlyArray<ShuvTunnelStoredTunnel>, ShuvTunnelError>;
     readonly get: (
-      options?: OpenTunnelProfileOptions,
-    ) => Effect.Effect<OpenTunnelIdentity | undefined, OpenTunnelError>;
+      options?: ShuvTunnelProfileOptions,
+    ) => Effect.Effect<ShuvTunnelIdentity | undefined, ShuvTunnelError>;
     readonly pending: (
-      options?: OpenTunnelProfileOptions,
-    ) => Effect.Effect<Pick<OpenTunnelPendingIdentity, "id" | "hostname"> | undefined, OpenTunnelError>;
+      options?: ShuvTunnelProfileOptions,
+    ) => Effect.Effect<Pick<ShuvTunnelPendingIdentity, "id" | "hostname"> | undefined, ShuvTunnelError>;
     readonly resume: (
-      options?: OpenTunnelProfileOptions & {
-        readonly onProgress?: (stage: OpenTunnelProvisionStage) => void;
+      options?: ShuvTunnelProfileOptions & {
+        readonly onProgress?: (stage: ShuvTunnelProvisionStage) => void;
       },
-    ) => Effect.Effect<OpenTunnelIdentity | undefined, OpenTunnelError>;
+    ) => Effect.Effect<ShuvTunnelIdentity | undefined, ShuvTunnelError>;
     readonly create: (
-      options?: OpenTunnelProfileOptions & {
+      options?: ShuvTunnelProfileOptions & {
         readonly name?: string;
-        readonly onProgress?: (stage: OpenTunnelProvisionStage) => void;
+        readonly onProgress?: (stage: ShuvTunnelProvisionStage) => void;
       },
-    ) => Effect.Effect<OpenTunnelIdentity, OpenTunnelError>;
+    ) => Effect.Effect<ShuvTunnelIdentity, ShuvTunnelError>;
     readonly ensure: (
-      options?: OpenTunnelProfileOptions & { readonly name?: string },
-    ) => Effect.Effect<OpenTunnelIdentity, OpenTunnelError>;
+      options?: ShuvTunnelProfileOptions & { readonly name?: string },
+    ) => Effect.Effect<ShuvTunnelIdentity, ShuvTunnelError>;
     readonly remove: (
-      options?: OpenTunnelProfileOptions,
-    ) => Effect.Effect<void, OpenTunnelError>;
+      options?: ShuvTunnelProfileOptions,
+    ) => Effect.Effect<void, ShuvTunnelError>;
     readonly connect: (
-      options?: OpenTunnelProfileOptions & { readonly signal?: AbortSignal },
-    ) => Effect.Effect<OpenTunnelConnection, OpenTunnelError, Scope.Scope>;
+      options?: ShuvTunnelProfileOptions & { readonly signal?: AbortSignal },
+    ) => Effect.Effect<ShuvTunnelConnection, ShuvTunnelError, Scope.Scope>;
   };
 }

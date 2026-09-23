@@ -1,27 +1,27 @@
 import { Effect } from "effect";
 import {
-  OpenTunnelStorage as EffectStorage,
-  type OpenTunnelStorage as EffectStorageType,
+  ShuvTunnelStorage as EffectStorage,
+  type ShuvTunnelStorage as EffectStorageType,
 } from "../effect/storage.js";
 import type {
-  OpenTunnelIdentity,
-  OpenTunnelPendingIdentity,
-  OpenTunnelStoredTunnel,
+  ShuvTunnelIdentity,
+  ShuvTunnelPendingIdentity,
+  ShuvTunnelStoredTunnel,
 } from "../effect/types.js";
 
-const EffectStorageSymbol = Symbol.for("@opentunnel/client/EffectStorage");
+const EffectStorageSymbol = Symbol.for("@shuvtunnel/client/EffectStorage");
 
-export interface OpenTunnelStorage {
+export interface ShuvTunnelStorage {
   readonly profiles: () => Promise<ReadonlyArray<string>>;
-  readonly load: (profile: string) => Promise<OpenTunnelIdentity | undefined>;
-  readonly save: (profile: string, tunnel: OpenTunnelIdentity) => Promise<void>;
-  readonly loadPending: (profile: string) => Promise<OpenTunnelPendingIdentity | undefined>;
-  readonly savePending: (profile: string, tunnel: OpenTunnelPendingIdentity) => Promise<void>;
+  readonly load: (profile: string) => Promise<ShuvTunnelIdentity | undefined>;
+  readonly save: (profile: string, tunnel: ShuvTunnelIdentity) => Promise<void>;
+  readonly loadPending: (profile: string) => Promise<ShuvTunnelPendingIdentity | undefined>;
+  readonly savePending: (profile: string, tunnel: ShuvTunnelPendingIdentity) => Promise<void>;
   readonly remove: (profile: string) => Promise<void>;
-  readonly list: () => Promise<ReadonlyArray<OpenTunnelStoredTunnel>>;
+  readonly list: () => Promise<ReadonlyArray<ShuvTunnelStoredTunnel>>;
 }
 
-type WrappedStorage = OpenTunnelStorage & { readonly [EffectStorageSymbol]: EffectStorageType };
+type WrappedStorage = ShuvTunnelStorage & { readonly [EffectStorageSymbol]: EffectStorageType };
 
 const wrap = (storage: EffectStorageType): WrappedStorage => ({
   [EffectStorageSymbol]: storage,
@@ -34,13 +34,13 @@ const wrap = (storage: EffectStorageType): WrappedStorage => ({
   list: () => Effect.runPromise(storage.list()),
 });
 
-export const OpenTunnelStorage = {
-  memory: (): OpenTunnelStorage => wrap(EffectStorage.memory()),
-  xdg: (options?: { readonly env?: NodeJS.ProcessEnv; readonly home?: string }): OpenTunnelStorage =>
+export const ShuvTunnelStorage = {
+  memory: (): ShuvTunnelStorage => wrap(EffectStorage.memory()),
+  xdg: (options?: { readonly env?: NodeJS.ProcessEnv; readonly home?: string }): ShuvTunnelStorage =>
     wrap(EffectStorage.xdg(options)),
 };
 
-export function toEffectStorage(storage: OpenTunnelStorage): EffectStorageType {
+export function toEffectStorage(storage: ShuvTunnelStorage): EffectStorageType {
   if (EffectStorageSymbol in storage) return (storage as WrappedStorage)[EffectStorageSymbol];
   return {
     profiles: () => Effect.tryPromise(() => storage.profiles()),

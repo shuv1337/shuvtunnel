@@ -4,21 +4,21 @@ import * as Os from "node:os";
 import * as Path from "node:path";
 import { parse, stringify } from "smol-toml";
 
-export class OpenTunnelCliConfigError extends Schema.TaggedErrorClass<OpenTunnelCliConfigError>()(
-  "OpenTunnelCliConfigError",
+export class ShuvTunnelCliConfigError extends Schema.TaggedErrorClass<ShuvTunnelCliConfigError>()(
+  "ShuvTunnelCliConfigError",
   { message: Schema.String, cause: Schema.optional(Schema.Defect) },
 ) {}
 
-export interface OpenTunnelCliConfig {
+export interface ShuvTunnelCliConfig {
   readonly routes: Readonly<Record<string, string>>;
 }
 
 const profilePattern = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 
-export function openTunnelConfigPath(profile: string): Effect.Effect<string, OpenTunnelCliConfigError> {
+export function shuvTunnelConfigPath(profile: string): Effect.Effect<string, ShuvTunnelCliConfigError> {
   if (!profilePattern.test(profile)) {
     return Effect.gen(function* () {
-      return yield* new OpenTunnelCliConfigError({
+      return yield* new ShuvTunnelCliConfigError({
         message: "Profile names must contain only lowercase letters, numbers, and hyphens",
       });
     });
@@ -26,16 +26,16 @@ export function openTunnelConfigPath(profile: string): Effect.Effect<string, Ope
   return Effect.succeed(
     Path.join(
       process.env.XDG_CONFIG_HOME ?? Path.join(Os.homedir(), ".config"),
-      "opentunnel",
+      "shuvtunnel",
       `${profile}.toml`,
     ),
   );
 }
 
-export const loadOpenTunnelConfig = Effect.fn("OpenTunnelCliConfig.load")(function* (
+export const loadShuvTunnelConfig = Effect.fn("ShuvTunnelCliConfig.load")(function* (
   profile: string,
 ) {
-  const path = yield* openTunnelConfigPath(profile);
+  const path = yield* shuvTunnelConfigPath(profile);
   const content = yield* Effect.tryPromise({
     try: () => Fs.readFile(path, "utf8"),
     catch: (cause) => cause,
@@ -44,31 +44,31 @@ export const loadOpenTunnelConfig = Effect.fn("OpenTunnelCliConfig.load")(functi
       if (typeof cause === "object" && cause !== null && "code" in cause && cause.code === "ENOENT") {
         return undefined;
       }
-      return yield* new OpenTunnelCliConfigError({ message: `Failed to read ${path}`, cause });
+      return yield* new ShuvTunnelCliConfigError({ message: `Failed to read ${path}`, cause });
     })),
   );
-  if (!content) return { routes: {} } satisfies OpenTunnelCliConfig;
+  if (!content) return { routes: {} } satisfies ShuvTunnelCliConfig;
   const document = yield* Effect.try({
     try: () => parse(content) as { routes?: Record<string, unknown> },
-    catch: (cause) => new OpenTunnelCliConfigError({ message: `Failed to parse ${path}`, cause }),
+    catch: (cause) => new ShuvTunnelCliConfigError({ message: `Failed to parse ${path}`, cause }),
   });
   const routes: Record<string, string> = {};
   for (const [name, target] of Object.entries(document.routes ?? {})) {
     if (typeof target === "string") routes[name] = target;
   }
-  return { routes } satisfies OpenTunnelCliConfig;
+  return { routes } satisfies ShuvTunnelCliConfig;
 });
 
-export const saveOpenTunnelConfig = Effect.fn("OpenTunnelCliConfig.save")(function* (
+export const saveShuvTunnelConfig = Effect.fn("ShuvTunnelCliConfig.save")(function* (
   profile: string,
-  config: OpenTunnelCliConfig,
+  config: ShuvTunnelCliConfig,
 ) {
-  const path = yield* openTunnelConfigPath(profile);
+  const path = yield* shuvTunnelConfigPath(profile);
   yield* Effect.tryPromise({
     try: async () => {
       await Fs.mkdir(Path.dirname(path), { recursive: true });
       await Fs.writeFile(path, stringify({ routes: config.routes }), { mode: 0o644 });
     },
-    catch: (cause) => new OpenTunnelCliConfigError({ message: `Failed to write ${path}`, cause }),
+    catch: (cause) => new ShuvTunnelCliConfigError({ message: `Failed to write ${path}`, cause }),
   });
 });

@@ -1,6 +1,6 @@
-import type { Certificate } from "@opentunnel/protocol/certificate";
-import type { CSR } from "@opentunnel/protocol/csr";
-import type { Tunnel } from "@opentunnel/protocol/tunnel";
+import type { Certificate } from "@shuvtunnel/protocol/certificate";
+import type { CSR } from "@shuvtunnel/protocol/csr";
+import type { Tunnel } from "@shuvtunnel/protocol/tunnel";
 
 export interface StoredTunnel {
   readonly version: 1;

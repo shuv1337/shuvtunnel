@@ -17,3 +17,9 @@
 - Spectrum must use TLS passthrough; never move tenant TLS termination into the Worker.
 - Run `bun run cf-typegen` after changing Wrangler bindings.
 - Use `bun run build` in `packages/server` to typecheck the Worker and run a Wrangler dry-run bundle.
+
+## Fork Boundary
+
+- This is ShuvTunnel, a fork of anomalyco/opentunnel. `FORK.md` is the identity contract.
+- Keep the deployed Worker name `opentunnel-shuv` and Workflow `opentunnel-shuv-certificates` unchanged.
+- Run `bun run check:fork` after upstream merges or rename work; `bun run ready` includes it.

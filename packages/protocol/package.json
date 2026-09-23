@@ -1,10 +1,10 @@
 {
-  "name": "@opentunnel/protocol",
+  "name": "@shuvtunnel/protocol",
   "version": "0.0.0",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/anomalyco/opentunnel.git"
+    "url": "git+https://github.com/shuv1337/shuvtunnel.git"
   },
   "files": [
     "dist"

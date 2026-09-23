@@ -124,7 +124,7 @@ export const ControlMessage = Schema.Union([
 export type ControlMessage = Schema.Schema.Type<typeof ControlMessage>;
 
 // WebSocket subprotocol name
-export const WEBSOCKET_SUBPROTOCOL = "opentunnel";
+export const WEBSOCKET_SUBPROTOCOL = "shuvtunnel";
 
 // Error codes from specs.md
 export const BridgeErrorCode = {

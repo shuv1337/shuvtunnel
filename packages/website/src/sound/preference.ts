@@ -1,4 +1,4 @@
-export const soundPreferenceKey = "opentunnel:sfx"
+export const soundPreferenceKey = "shuvtunnel:sfx"
 type StoragePort = Pick<Storage, "getItem" | "setItem">
 
 /** Durable on/off preference, with a page-local fallback when storage is unavailable. Visitors start off. */

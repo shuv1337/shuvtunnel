@@ -1,10 +1,10 @@
 import { Effect, Schema } from "effect";
 import { env } from "cloudflare:workers";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
-import { Certificate } from "@opentunnel/protocol/certificate";
-import { Tunnel } from "@opentunnel/protocol/tunnel";
-import { Api } from "@opentunnel/protocol/api/api";
-import { OpenTunnelAuthorizationToken } from "@opentunnel/protocol/api/auth";
+import { Certificate } from "@shuvtunnel/protocol/certificate";
+import { Tunnel } from "@shuvtunnel/protocol/tunnel";
+import { Api } from "@shuvtunnel/protocol/api/api";
+import { ShuvTunnelAuthorizationToken } from "@shuvtunnel/protocol/api/auth";
 import {
   CertificateInProgressError,
   CertificateNotFoundError,
@@ -14,7 +14,7 @@ import {
   ServiceUnavailableError,
   TunnelNotFoundError,
   UnauthorizedError,
-} from "@opentunnel/protocol/api/errors";
+} from "@shuvtunnel/protocol/api/errors";
 import { hashToken, randomToken } from "../crypto.js";
 import { Random } from "../random.js";
 
@@ -34,7 +34,7 @@ export const TunnelHandlers = HttpApiBuilder.group(Api, "tunnel", (handlers) =>
         try: async () =>
           env.TUNNELS.getByName(id).initialize({
             id,
-            hostname: `${id}.${env.OPENTUNNEL_DOMAIN}`,
+            hostname: `${id}.${env.SHUVTUNNEL_DOMAIN}`,
             tokenHash: await hashToken(token),
           }),
         catch: (cause) => new ServiceUnavailableError({ message: String(cause) }),
@@ -49,7 +49,7 @@ export const TunnelHandlers = HttpApiBuilder.group(Api, "tunnel", (handlers) =>
       );
     })
     .handle("tunnel.get", ({ params }) =>
-      OpenTunnelAuthorizationToken.asEffect().pipe(
+      ShuvTunnelAuthorizationToken.asEffect().pipe(
         Effect.flatMap((token) =>
           Effect.tryPromise({
             try: async () => await env.TUNNELS.getByName(String(params.id)).info(token),
@@ -69,7 +69,7 @@ export const TunnelHandlers = HttpApiBuilder.group(Api, "tunnel", (handlers) =>
       ),
     )
     .handle("tunnel.bindCertificate", ({ params, payload }) =>
-      OpenTunnelAuthorizationToken.asEffect().pipe(
+      ShuvTunnelAuthorizationToken.asEffect().pipe(
         Effect.flatMap((token) =>
           Effect.tryPromise({
             try: async () =>
@@ -124,7 +124,7 @@ export const TunnelHandlers = HttpApiBuilder.group(Api, "tunnel", (handlers) =>
       ),
     )
     .handle("tunnel.getCertificate", ({ params }) =>
-      OpenTunnelAuthorizationToken.asEffect().pipe(
+      ShuvTunnelAuthorizationToken.asEffect().pipe(
         Effect.flatMap((token) =>
           Effect.tryPromise({
             try: async () => await env.TUNNELS.getByName(String(params.id)).certificate(token),
@@ -165,7 +165,7 @@ export const TunnelHandlers = HttpApiBuilder.group(Api, "tunnel", (handlers) =>
       ),
     )
     .handle("tunnel.remove", ({ params }) =>
-      OpenTunnelAuthorizationToken.asEffect().pipe(
+      ShuvTunnelAuthorizationToken.asEffect().pipe(
         Effect.flatMap((token) =>
           Effect.tryPromise({
             try: async () => await env.TUNNELS.getByName(String(params.id)).remove(token),

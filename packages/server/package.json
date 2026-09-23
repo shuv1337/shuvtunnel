@@ -1,10 +1,10 @@
 {
-  "name": "@opentunnel/server",
+  "name": "@shuvtunnel/server",
   "version": "0.0.0",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/anomalyco/opentunnel.git"
+    "url": "git+https://github.com/shuv1337/shuvtunnel.git"
   },
   "private": true,
   "type": "module",
@@ -15,7 +15,7 @@
     "build": "wrangler types worker-configuration.d.ts && tsc -p tsconfig.json && wrangler deploy --dry-run"
   },
   "dependencies": {
-    "@opentunnel/protocol": "workspace:*",
+    "@shuvtunnel/protocol": "workspace:*",
     "@peculiar/acme-client": "catalog:",
     "@peculiar/jose": "catalog:",
     "@peculiar/x509": "catalog:",

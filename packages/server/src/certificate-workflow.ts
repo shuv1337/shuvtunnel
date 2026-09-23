@@ -2,7 +2,7 @@ import { env, WorkflowEntrypoint, type WorkflowEvent, type WorkflowStep } from "
 import { ApiClient } from "@peculiar/acme-client";
 import { JsonWebKey as JoseJsonWebKey } from "@peculiar/jose";
 import { X509Certificate } from "@peculiar/x509";
-import { Certificate } from "@opentunnel/protocol/certificate";
+import { Certificate } from "@shuvtunnel/protocol/certificate";
 import { base64Url, decodeBase64Url, pemBody } from "./crypto.js";
 
 export interface CertificateWorkflowParams {

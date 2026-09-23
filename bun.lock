@@ -3,20 +3,20 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "@opentunnel/root",
+      "name": "@shuvtunnel/root",
       "devDependencies": {
         "@changesets/cli": "3.0.0",
       },
     },
     "packages/cli": {
-      "name": "opentunnel",
+      "name": "shuvtunnel",
       "version": "0.0.30",
       "bin": {
-        "opentunnel": "dist/index.js",
+        "shuvtunnel": "dist/index.js",
       },
       "devDependencies": {
         "@effect/platform-node": "catalog:",
-        "@opentunnel/client": "workspace:*",
+        "@shuvtunnel/client": "workspace:*",
         "@types/bun": "catalog:",
         "@types/node": "catalog:",
         "@typescript/native-preview": "catalog:",
@@ -26,11 +26,11 @@
       },
     },
     "packages/client": {
-      "name": "@opentunnel/client",
+      "name": "@shuvtunnel/client",
       "version": "0.0.0",
       "dependencies": {
-        "@opentunnel/protocol": "workspace:*",
         "@peculiar/x509": "catalog:",
+        "@shuvtunnel/protocol": "workspace:*",
         "effect": "catalog:",
         "reflect-metadata": "catalog:",
         "ws": "catalog:",
@@ -43,7 +43,7 @@
       },
     },
     "packages/protocol": {
-      "name": "@opentunnel/protocol",
+      "name": "@shuvtunnel/protocol",
       "version": "0.0.0",
       "dependencies": {
         "effect": "catalog:",
@@ -56,13 +56,13 @@
       },
     },
     "packages/server": {
-      "name": "@opentunnel/server",
+      "name": "@shuvtunnel/server",
       "version": "0.0.0",
       "dependencies": {
-        "@opentunnel/protocol": "workspace:*",
         "@peculiar/acme-client": "catalog:",
         "@peculiar/jose": "catalog:",
         "@peculiar/x509": "catalog:",
+        "@shuvtunnel/protocol": "workspace:*",
         "effect": "catalog:",
         "reflect-metadata": "catalog:",
       },
@@ -73,7 +73,7 @@
       },
     },
     "packages/website": {
-      "name": "@opentunnel/website",
+      "name": "@shuvtunnel/website",
       "version": "0.0.0",
       "dependencies": {
         "@kitlangton/justice": "0.3.0",
@@ -311,14 +311,6 @@
 
     "@napi-rs/wasm-runtime": ["@napi-rs/wasm-runtime@1.2.4", "", { "dependencies": { "@tybys/wasm-util": "^0.10.3" }, "peerDependencies": { "@emnapi/core": "^1.7.1 || ^2.0.0-alpha.4", "@emnapi/runtime": "^1.7.1 || ^2.0.0-alpha.4" } }, "sha512-AJxoUD2/15ESHbvpcyjU274nsAPLuOtPHCk0vKJM5pj//Fg/B1FXNWjPnXTT9PymCYYiHo4zPj0ZomXBKhoy7g=="],
 
-    "@opentunnel/client": ["@opentunnel/client@workspace:packages/client"],
-
-    "@opentunnel/protocol": ["@opentunnel/protocol@workspace:packages/protocol"],
-
-    "@opentunnel/server": ["@opentunnel/server@workspace:packages/server"],
-
-    "@opentunnel/website": ["@opentunnel/website@workspace:packages/website"],
-
     "@oxc-project/types": ["@oxc-project/types@0.139.0", "", {}, "sha512-r9gHphtCs+1M7J0pw6Sn/hh/Wpa/iQrOOkrNAlVLF/gHq+/CJmHIWKKUUhdWjcD6CIa8idarspCsASiXCXvFUw=="],
 
     "@peculiar/acme-client": ["@peculiar/acme-client@1.8.2", "", { "dependencies": { "@peculiar/acme-core": "^1.8.2", "@peculiar/acme-protocol": "^1.8.2", "@peculiar/asn1-x509": "^2.0.44", "@peculiar/jose": "^1.8.2", "pvtsutils": "^1.2.1" } }, "sha512-MSmVBZMZ+9CakNZeblXonkft6I21s1NqWMXVlEIRhxqm5o50dhcRAuynSBT2qr9etVad+Em+eJ/hO5orCSmm2A=="],
@@ -396,6 +388,14 @@
     "@rolldown/binding-win32-x64-msvc": ["@rolldown/binding-win32-x64-msvc@1.1.5", "", { "os": "win32", "cpu": "x64" }, "sha512-tTZuDBPw85tEN5PQi1pnEBzDy0Z49HtScLAbD5t6hyeU92A95pRWaSMw1GZZi/RwgSgUIl0xrSlXIT/9QzvYSA=="],
 
     "@rolldown/pluginutils": ["@rolldown/pluginutils@1.0.1", "", {}, "sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw=="],
+
+    "@shuvtunnel/client": ["@shuvtunnel/client@workspace:packages/client"],
+
+    "@shuvtunnel/protocol": ["@shuvtunnel/protocol@workspace:packages/protocol"],
+
+    "@shuvtunnel/server": ["@shuvtunnel/server@workspace:packages/server"],
+
+    "@shuvtunnel/website": ["@shuvtunnel/website@workspace:packages/website"],
 
     "@sindresorhus/is": ["@sindresorhus/is@7.2.0", "", {}, "sha512-P1Cz1dWaFfR4IR+U13mqqiGsLFf1KbayybWwdd2vfctdV6hDpUkgCY0nKOLLTMSoRd/jJNjtbqzf13K8DCCXQw=="],
 
@@ -547,8 +547,6 @@
 
     "node-gyp-build-optional-packages": ["node-gyp-build-optional-packages@5.2.2", "", { "dependencies": { "detect-libc": "^2.0.1" }, "bin": { "node-gyp-build-optional-packages": "bin.js", "node-gyp-build-optional-packages-optional": "optional.js", "node-gyp-build-optional-packages-test": "build-test.js" } }, "sha512-s+w+rBWnpTMwSFbaE0UXsRlg7hU4FjekKU4eyAih5T8nJuNZT1nNsskXpxmeqSK9UzkBl6UgRlnKc8hz8IEqOw=="],
 
-    "opentunnel": ["opentunnel@workspace:packages/cli"],
-
     "package-manager-detector": ["package-manager-detector@1.8.0", "", {}, "sha512-yQA4H19AmPEoMUeavPMDIe1higySl/gH/yaQrkT/s07Qp+7pp2hYz30N3z2l5BkjVkF9Ow6o0wjJamm2y7Sn0A=="],
 
     "path-to-regexp": ["path-to-regexp@6.3.0", "", {}, "sha512-Yhpw4T9C6hPpgPeA28us07OJeqZ5EzQTkbfwuhsUg0c237RomFoETJgmp2sa3F/41gfLE6G5cqcYwznmeEeOlQ=="],
@@ -590,6 +588,8 @@
     "sharp": ["sharp@0.35.2", "", { "dependencies": { "@img/colour": "^1.1.0", "detect-libc": "^2.1.2", "semver": "^7.8.4" }, "optionalDependencies": { "@img/sharp-darwin-arm64": "0.35.2", "@img/sharp-darwin-x64": "0.35.2", "@img/sharp-freebsd-wasm32": "0.35.2", "@img/sharp-libvips-darwin-arm64": "1.3.1", "@img/sharp-libvips-darwin-x64": "1.3.1", "@img/sharp-libvips-linux-arm": "1.3.1", "@img/sharp-libvips-linux-arm64": "1.3.1", "@img/sharp-libvips-linux-ppc64": "1.3.1", "@img/sharp-libvips-linux-riscv64": "1.3.1", "@img/sharp-libvips-linux-s390x": "1.3.1", "@img/sharp-libvips-linux-x64": "1.3.1", "@img/sharp-libvips-linuxmusl-arm64": "1.3.1", "@img/sharp-libvips-linuxmusl-x64": "1.3.1", "@img/sharp-linux-arm": "0.35.2", "@img/sharp-linux-arm64": "0.35.2", "@img/sharp-linux-ppc64": "0.35.2", "@img/sharp-linux-riscv64": "0.35.2", "@img/sharp-linux-s390x": "0.35.2", "@img/sharp-linux-x64": "0.35.2", "@img/sharp-linuxmusl-arm64": "0.35.2", "@img/sharp-linuxmusl-x64": "0.35.2", "@img/sharp-webcontainers-wasm32": "0.35.2", "@img/sharp-win32-arm64": "0.35.2", "@img/sharp-win32-ia32": "0.35.2", "@img/sharp-win32-x64": "0.35.2" } }, "sha512-FVtFjtBCMiJS6yb5CX7Sop45WFMpeGw6oRKuJnXYgf/f1ms/D7LE/ZUSNxnW7rZ/dbslQWYkoqFHGPaDBtaK4w=="],
 
     "shell-quote": ["shell-quote@1.10.0", "", {}, "sha512-w1aiOKwKuRgtwAReIIj89puqg+I7GvX4IbLrvmhXbzQsj1+Zwi4VO3+fa6ZF91TWSjIxoEkKnMeHcLEODK5ZXA=="],
+
+    "shuvtunnel": ["shuvtunnel@workspace:packages/cli"],
 
     "sisteransi": ["sisteransi@1.0.5", "", {}, "sha512-bLGGlR1QxBcynn2d5YmDX4MGjlZvy2MRBDRNHLJ8VI6l6+9FUiyTFNJ0IveOSP0bcXgVDPRcfGqA0pjaqUpfVg=="],
 

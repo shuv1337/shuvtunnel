@@ -5,7 +5,7 @@ import type { ReactNode } from "react"
 // stretched to a 4.6:1 box (`textLength` + `preserveAspectRatio="none"`), and the two caption lines under
 // the square, each a word, a dotted leader, a word and a small icon on the caps.
 
-export const WORDMARK = "OPENTUNNEL"
+export const WORDMARK = "SHUVTUNNEL"
 const WIDTH = 1000, ASPECT = 4.6, CAP = .867
 export const wordmarkHeight = WIDTH / ASPECT
 export const wordmarkFontSize = wordmarkHeight / CAP

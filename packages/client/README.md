@@ -1,8 +1,8 @@
-# OpenTunnel Client
+# ShuvTunnel Client
 
 > Design draft. This documents the intended public interface before implementation.
 
-`@opentunnel/client` contains all reusable client-side OpenTunnel behavior. The
+`@shuvtunnel/client` contains all reusable client-side ShuvTunnel behavior. The
 CLI is a thin wrapper around its Effect interface.
 
 ## Exports
@@ -10,13 +10,13 @@ CLI is a thin wrapper around its Effect interface.
 The default export is Promise-based and does not require Effect at runtime:
 
 ```ts
-import { create } from "@opentunnel/client"
+import { create } from "@shuvtunnel/client"
 ```
 
 The Effect interface is available separately:
 
 ```ts
-import { OpenTunnelClient } from "@opentunnel/client/effect"
+import { ShuvTunnelClient } from "@shuvtunnel/client/effect"
 ```
 
 Both interfaces expose the same capabilities and types.
@@ -171,7 +171,7 @@ Omitting `store` is equivalent to using `xdgStore()`.
 The XDG store only manages generated identity and credentials:
 
 ```text
-$XDG_DATA_HOME/opentunnel/default/
+$XDG_DATA_HOME/shuvtunnel/default/
   tunnel.json
   token
   private-key.pem
@@ -179,17 +179,17 @@ $XDG_DATA_HOME/opentunnel/default/
   chain.pem
 ```
 
-Route configuration is not part of `OpenTunnelStorage`. The CLI owns TOML
+Route configuration is not part of `ShuvTunnelStorage`. The CLI owns TOML
 configuration, while embedded applications provide routes at runtime.
 
 ## Dependency Boundary
 
 ```text
-@opentunnel/cli
+@shuvtunnel/cli
         ↓
-@opentunnel/client
+@shuvtunnel/client
         ↓
-@opentunnel/protocol
+@shuvtunnel/protocol
 ```
 
 The CLI does not implement profile, route, certificate, bridge, TLS, or proxy

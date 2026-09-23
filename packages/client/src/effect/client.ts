@@ -4,24 +4,24 @@ import {
   Pkcs10CertificateRequestGenerator,
   SubjectAlternativeNameExtension,
 } from "@peculiar/x509";
-import { CSR } from "@opentunnel/protocol/csr";
-import { Tunnel } from "@opentunnel/protocol/tunnel";
-import { OpenTunnelApiClient } from "./api.js";
-import { OpenTunnelClientError } from "./errors.js";
-import { OpenTunnelStorage, type OpenTunnelStorage as Storage } from "./storage.js";
+import { CSR } from "@shuvtunnel/protocol/csr";
+import { Tunnel } from "@shuvtunnel/protocol/tunnel";
+import { ShuvTunnelApiClient } from "./api.js";
+import { ShuvTunnelClientError } from "./errors.js";
+import { ShuvTunnelStorage, type ShuvTunnelStorage as Storage } from "./storage.js";
 import type {
-  OpenTunnelEffectClient,
-  OpenTunnelIdentity,
-  OpenTunnelPendingIdentity,
-  OpenTunnelProfileOptions,
-  OpenTunnelProvisionStage,
-  OpenTunnelRoute,
+  ShuvTunnelEffectClient,
+  ShuvTunnelIdentity,
+  ShuvTunnelPendingIdentity,
+  ShuvTunnelProfileOptions,
+  ShuvTunnelProvisionStage,
+  ShuvTunnelRoute,
 } from "./types.js";
 import { connectBridge } from "./bridge.js";
 
-const profileName = (options?: OpenTunnelProfileOptions) => options?.profile ?? "default";
+const profileName = (options?: ShuvTunnelProfileOptions) => options?.profile ?? "default";
 const clientError = (message: string, cause: unknown) =>
-  new OpenTunnelClientError({ message, cause });
+  new ShuvTunnelClientError({ message, cause });
 
 const privateKeyPem = (buffer: ArrayBuffer): string => {
   const bytes = new Uint8Array(buffer);
@@ -31,33 +31,33 @@ const privateKeyPem = (buffer: ArrayBuffer): string => {
   return `-----BEGIN PRIVATE KEY-----\n${body.match(/.{1,64}/g)?.join("\n") ?? body}\n-----END PRIVATE KEY-----\n`;
 };
 
-export interface OpenTunnelClientOptions {
+export interface ShuvTunnelClientOptions {
   readonly api?: URL | string;
   readonly storage?: Storage;
 }
 
-export class OpenTunnelClient extends ServiceMap.Service<
-  OpenTunnelClient,
-  OpenTunnelEffectClient
->()("@opentunnel/client/OpenTunnelClient") {
-  static layer(options: OpenTunnelClientOptions = {}) {
-    const storage = options.storage ?? OpenTunnelStorage.xdg();
+export class ShuvTunnelClient extends ServiceMap.Service<
+  ShuvTunnelClient,
+  ShuvTunnelEffectClient
+>()("@shuvtunnel/client/ShuvTunnelClient") {
+  static layer(options: ShuvTunnelClientOptions = {}) {
+    const storage = options.storage ?? ShuvTunnelStorage.xdg();
     return Layer.effect(
-      OpenTunnelClient,
+      ShuvTunnelClient,
       Effect.gen(function* () {
-        const api = yield* OpenTunnelApiClient;
-        const routesByProfile = new Map<string, ReadonlyArray<OpenTunnelRoute>>();
+        const api = yield* ShuvTunnelApiClient;
+        const routesByProfile = new Map<string, ReadonlyArray<ShuvTunnelRoute>>();
 
-        const get = Effect.fn("OpenTunnelClient.tunnel.get")(function* (
-          input?: OpenTunnelProfileOptions,
+        const get = Effect.fn("ShuvTunnelClient.tunnel.get")(function* (
+          input?: ShuvTunnelProfileOptions,
         ) {
           return yield* storage.load(profileName(input));
         });
 
-        const completePending = Effect.fn("OpenTunnelClient.tunnel.completePending")(function* (options: {
+        const completePending = Effect.fn("ShuvTunnelClient.tunnel.completePending")(function* (options: {
           readonly profile: string;
-          readonly pending: OpenTunnelPendingIdentity;
-          readonly onProgress?: (stage: OpenTunnelProvisionStage) => void;
+          readonly pending: ShuvTunnelPendingIdentity;
+          readonly onProgress?: (stage: ShuvTunnelProvisionStage) => void;
         }) {
           const authorized = yield* api.authorized(Tunnel.Token.makeUnsafe(options.pending.token));
           yield* Effect.sync(() => options.onProgress?.("requesting-certificate"));
@@ -78,14 +78,14 @@ export class OpenTunnelClient extends ServiceMap.Service<
               );
               if (value.state.type === "ready") return value.state;
               if (value.state.type === "failed") {
-                return yield* new OpenTunnelClientError({
+                return yield* new ShuvTunnelClientError({
                   message: `Certificate issuance failed: ${value.state.reason}`,
                 });
               }
               yield* Effect.sleep("2 seconds");
             }
           });
-          const identity: OpenTunnelIdentity = {
+          const identity: ShuvTunnelIdentity = {
             id: options.pending.id,
             hostname: options.pending.hostname,
             token: options.pending.token,
@@ -100,12 +100,12 @@ export class OpenTunnelClient extends ServiceMap.Service<
           return identity;
         });
 
-        const provision = Effect.fn("OpenTunnelClient.tunnel.provision")(function* (options: {
+        const provision = Effect.fn("ShuvTunnelClient.tunnel.provision")(function* (options: {
           readonly profile: string;
           readonly id: Tunnel.ID;
           readonly hostname: string;
           readonly token: Tunnel.Token;
-          readonly onProgress?: (stage: OpenTunnelProvisionStage) => void;
+          readonly onProgress?: (stage: ShuvTunnelProvisionStage) => void;
         }) {
           yield* Effect.sync(() => options.onProgress?.("generating-key"));
           const keys = yield* Effect.tryPromise({
@@ -137,7 +137,7 @@ export class OpenTunnelClient extends ServiceMap.Service<
             try: () => crypto.subtle.exportKey("pkcs8", keys.privateKey),
             catch: (cause) => clientError("Failed to export certificate key", cause),
           });
-          const pending: OpenTunnelPendingIdentity = {
+          const pending: ShuvTunnelPendingIdentity = {
             id: String(options.id),
             hostname: options.hostname,
             token: options.token,
@@ -152,15 +152,15 @@ export class OpenTunnelClient extends ServiceMap.Service<
           });
         });
 
-        const create = Effect.fn("OpenTunnelClient.tunnel.create")(function* (
-          input?: OpenTunnelProfileOptions & {
+        const create = Effect.fn("ShuvTunnelClient.tunnel.create")(function* (
+          input?: ShuvTunnelProfileOptions & {
             readonly name?: string;
-            readonly onProgress?: (stage: OpenTunnelProvisionStage) => void;
+            readonly onProgress?: (stage: ShuvTunnelProvisionStage) => void;
           },
         ) {
           const profile = profileName(input);
           if (yield* storage.load(profile)) {
-            return yield* new OpenTunnelClientError({
+            return yield* new ShuvTunnelClientError({
               message: `Profile '${profile}' already has a tunnel`,
             });
           }
@@ -184,8 +184,8 @@ export class OpenTunnelClient extends ServiceMap.Service<
           });
         });
 
-        const ensure = Effect.fn("OpenTunnelClient.tunnel.ensure")(function* (
-          input?: OpenTunnelProfileOptions & { readonly name?: string },
+        const ensure = Effect.fn("ShuvTunnelClient.tunnel.ensure")(function* (
+          input?: ShuvTunnelProfileOptions & { readonly name?: string },
         ) {
           const existing = yield* get(input);
           if (!existing) return yield* create(input);
@@ -204,16 +204,16 @@ export class OpenTunnelClient extends ServiceMap.Service<
           });
         });
 
-        const pending = Effect.fn("OpenTunnelClient.tunnel.pending")(function* (
-          input?: OpenTunnelProfileOptions,
+        const pending = Effect.fn("ShuvTunnelClient.tunnel.pending")(function* (
+          input?: ShuvTunnelProfileOptions,
         ) {
           const value = yield* storage.loadPending(profileName(input));
           return value ? { id: value.id, hostname: value.hostname } : undefined;
         });
 
-        const resume = Effect.fn("OpenTunnelClient.tunnel.resume")(function* (
-          input?: OpenTunnelProfileOptions & {
-            readonly onProgress?: (stage: OpenTunnelProvisionStage) => void;
+        const resume = Effect.fn("ShuvTunnelClient.tunnel.resume")(function* (
+          input?: ShuvTunnelProfileOptions & {
+            readonly onProgress?: (stage: ShuvTunnelProvisionStage) => void;
           },
         ) {
           const profile = profileName(input);
@@ -223,8 +223,8 @@ export class OpenTunnelClient extends ServiceMap.Service<
           return yield* completePending({ profile, pending: value, onProgress: input?.onProgress });
         });
 
-        const listRoutes = Effect.fn("OpenTunnelClient.route.list")(function* (
-          input?: OpenTunnelProfileOptions,
+        const listRoutes = Effect.fn("ShuvTunnelClient.route.list")(function* (
+          input?: ShuvTunnelProfileOptions,
         ) {
           const profile = profileName(input);
           const identity = yield* storage.load(profile);
@@ -235,29 +235,29 @@ export class OpenTunnelClient extends ServiceMap.Service<
           }));
         });
 
-        const client: OpenTunnelEffectClient = {
+        const client: ShuvTunnelEffectClient = {
           profile: { list: storage.profiles },
           route: {
             list: listRoutes,
-            add: Effect.fn("OpenTunnelClient.route.add")(function* (input) {
+            add: Effect.fn("ShuvTunnelClient.route.add")(function* (input) {
               const profile = profileName(input);
               const identity = yield* ensure(input);
               const routes = routesByProfile.get(profile) ?? [];
               if (routes.some((route) => route.name === input.name)) {
-                return yield* new OpenTunnelClientError({
+                return yield* new ShuvTunnelClientError({
                   message: `Route '${input.name}' already exists in profile '${profile}'`,
                 });
               }
               if (input.target.includes("://")) {
-                return yield* new OpenTunnelClientError({
+                return yield* new ShuvTunnelClientError({
                   message: "Route targets must use host:port",
                 });
               }
               const target = new URL(`tcp://${input.target}`);
               if (!target.hostname || !target.port) {
-                return yield* new OpenTunnelClientError({ message: "Route targets must use host:port" });
+                return yield* new ShuvTunnelClientError({ message: "Route targets must use host:port" });
               }
-              const route: OpenTunnelRoute = {
+              const route: ShuvTunnelRoute = {
                 name: input.name,
                 hostname: `${input.name}.${identity.hostname}`,
                 target: input.target,
@@ -265,7 +265,7 @@ export class OpenTunnelClient extends ServiceMap.Service<
               routesByProfile.set(profile, [...routes, route]);
               return route;
             }),
-            remove: Effect.fn("OpenTunnelClient.route.remove")(function* (input) {
+            remove: Effect.fn("ShuvTunnelClient.route.remove")(function* (input) {
               const profile = profileName(input);
               const routes = routesByProfile.get(profile) ?? [];
               routesByProfile.set(
@@ -281,7 +281,7 @@ export class OpenTunnelClient extends ServiceMap.Service<
             resume,
             create,
             ensure,
-            remove: Effect.fn("OpenTunnelClient.tunnel.remove")(function* (input) {
+            remove: Effect.fn("ShuvTunnelClient.tunnel.remove")(function* (input) {
               const profile = profileName(input);
               const identity = yield* storage.load(profile);
               if (!identity) return;
@@ -299,7 +299,7 @@ export class OpenTunnelClient extends ServiceMap.Service<
                 const identity = yield* ensure(input);
                 const configured = routesByProfile.get(profile) ?? [];
                 return yield* connectBridge({
-                  api: new URL(options.api ?? "https://opentunnel.xyz"),
+                  api: new URL(options.api ?? "https://shuv.zip"),
                   identity,
                   routes: configured,
                 });
@@ -309,7 +309,7 @@ export class OpenTunnelClient extends ServiceMap.Service<
         return client;
       }),
     ).pipe(
-      Layer.provide(OpenTunnelApiClient.layer({ api: options.api ?? "https://opentunnel.xyz" })),
+      Layer.provide(ShuvTunnelApiClient.layer({ api: options.api ?? "https://shuv.zip" })),
     );
   }
 }

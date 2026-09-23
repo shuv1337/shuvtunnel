@@ -5,11 +5,11 @@ import { closeSync, openSync } from "node:fs";
 import * as Net from "node:net";
 import * as Os from "node:os";
 import * as Path from "node:path";
-import { OpenTunnelClient } from "@opentunnel/client/effect";
-import { loadOpenTunnelConfig } from "./config.js";
+import { ShuvTunnelClient } from "@shuvtunnel/client/effect";
+import { loadShuvTunnelConfig } from "./config.js";
 
-export class OpenTunnelServiceError extends Schema.TaggedErrorClass<OpenTunnelServiceError>()(
-  "OpenTunnelServiceError",
+export class ShuvTunnelServiceError extends Schema.TaggedErrorClass<ShuvTunnelServiceError>()(
+  "ShuvTunnelServiceError",
   { message: Schema.String, cause: Schema.optional(Schema.Defect) },
 ) {}
 
@@ -20,12 +20,12 @@ const paths = (profile: string) => {
     throw new Error("Profile names must contain only lowercase letters, numbers, and hyphens");
   }
   const runtimeRoot = Path.join(
-    process.env.XDG_RUNTIME_DIR ?? Path.join(Os.tmpdir(), `opentunnel-${process.getuid?.() ?? "user"}`),
-    "opentunnel",
+    process.env.XDG_RUNTIME_DIR ?? Path.join(Os.tmpdir(), `shuvtunnel-${process.getuid?.() ?? "user"}`),
+    "shuvtunnel",
   );
   const stateRoot = Path.join(
     process.env.XDG_STATE_HOME ?? Path.join(Os.homedir(), ".local", "state"),
-    "opentunnel",
+    "shuvtunnel",
     profile,
   );
   return {
@@ -62,20 +62,20 @@ const request = async (
   });
 };
 
-export const serviceStatus = Effect.fn("OpenTunnelService.status")(function* (profile: string) {
+export const serviceStatus = Effect.fn("ShuvTunnelService.status")(function* (profile: string) {
   return yield* Effect.tryPromise({
     try: () => request(profile, "status").then(() => true, () => false),
-    catch: () => new OpenTunnelServiceError({ message: "Failed to check background service" }),
+    catch: () => new ShuvTunnelServiceError({ message: "Failed to check background service" }),
   });
 });
 
-export const ensureService = Effect.fn("OpenTunnelService.ensure")(function* (profile: string) {
+export const ensureService = Effect.fn("ShuvTunnelService.ensure")(function* (profile: string) {
   const running = yield* serviceStatus(profile);
   if (running) return;
 
   const location = yield* Effect.try({
     try: () => paths(profile),
-    catch: (cause) => new OpenTunnelServiceError({ message: String(cause), cause }),
+    catch: (cause) => new ShuvTunnelServiceError({ message: String(cause), cause }),
   });
   yield* Effect.tryPromise({
     try: async () => {
@@ -88,7 +88,7 @@ export const ensureService = Effect.fn("OpenTunnelService.ensure")(function* (pr
           {
             detached: true,
             stdio: ["ignore", output, output],
-            env: { ...process.env, OPENTUNNEL_DAEMON: "1" },
+            env: { ...process.env, SHUVTUNNEL_DAEMON: "1" },
           },
         );
         child.unref();
@@ -102,14 +102,14 @@ export const ensureService = Effect.fn("OpenTunnelService.ensure")(function* (pr
       }
       throw new Error(`Background service did not start; see ${location.log}`);
     },
-    catch: (cause) => new OpenTunnelServiceError({
+    catch: (cause) => new ShuvTunnelServiceError({
       message: cause instanceof Error ? cause.message : String(cause),
       cause,
     }),
   });
 });
 
-export const stopService = Effect.fn("OpenTunnelService.stop")(function* (profile: string) {
+export const stopService = Effect.fn("ShuvTunnelService.stop")(function* (profile: string) {
   if (!(yield* serviceStatus(profile))) return;
   yield* Effect.tryPromise({
     try: async () => {
@@ -120,29 +120,29 @@ export const stopService = Effect.fn("OpenTunnelService.stop")(function* (profil
       }
       throw new Error("Background service did not stop");
     },
-    catch: (cause) => new OpenTunnelServiceError({
+    catch: (cause) => new ShuvTunnelServiceError({
       message: cause instanceof Error ? cause.message : String(cause),
       cause,
     }),
   });
 });
 
-export const reloadService = Effect.fn("OpenTunnelService.reload")(function* (profile: string) {
+export const reloadService = Effect.fn("ShuvTunnelService.reload")(function* (profile: string) {
   yield* ensureService(profile);
   yield* Effect.tryPromise({
     try: () => request(profile, "reload"),
-    catch: (cause) => new OpenTunnelServiceError({
+    catch: (cause) => new ShuvTunnelServiceError({
       message: "Failed to reload background service",
       cause,
     }),
   });
 });
 
-export const serve = Effect.fn("OpenTunnelService.serve")(function* (profile: string) {
-  const client = yield* OpenTunnelClient;
+export const serve = Effect.fn("ShuvTunnelService.serve")(function* (profile: string) {
+  const client = yield* ShuvTunnelClient;
   const location = yield* Effect.try({
     try: () => paths(profile),
-    catch: (cause) => new OpenTunnelServiceError({ message: String(cause), cause }),
+    catch: (cause) => new ShuvTunnelServiceError({ message: String(cause), cause }),
   });
   const commands = yield* Queue.unbounded<"reload" | "stop" | "provisioned">();
 
@@ -195,7 +195,7 @@ export const serve = Effect.fn("OpenTunnelService.serve")(function* (profile: st
         });
         return { server, lock };
       },
-      catch: (cause) => new OpenTunnelServiceError({
+      catch: (cause) => new ShuvTunnelServiceError({
         message: cause instanceof Error ? cause.message : String(cause),
         cause,
       }),
@@ -210,7 +210,7 @@ export const serve = Effect.fn("OpenTunnelService.serve")(function* (profile: st
     }),
   );
 
-  if (process.env.OPENTUNNEL_DAEMON !== "1") {
+  if (process.env.SHUVTUNNEL_DAEMON !== "1") {
     yield* Console.log(`Serving profile ${profile}.`);
   }
 
@@ -240,7 +240,7 @@ export const serve = Effect.fn("OpenTunnelService.serve")(function* (profile: st
 
     yield* Effect.gen(function* () {
       const tunnel = yield* client.tunnel.get({ profile });
-      const config = yield* loadOpenTunnelConfig(profile);
+      const config = yield* loadShuvTunnelConfig(profile);
       if (!tunnel) {
         const pending = yield* client.tunnel.pending({ profile });
         if (pending && !provisioningScope) {

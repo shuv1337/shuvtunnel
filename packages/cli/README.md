@@ -1,4 +1,4 @@
-# OpenTunnel CLI
+# ShuvTunnel CLI
 
 The CLI manages one tunnel identity and multiple subdomain routes per profile.
 The default profile is named `default`.
@@ -8,37 +8,37 @@ The default profile is named `default`.
 Create a tunnel and manage its route configuration:
 
 ```bash
-opentunnel create
-opentunnel info
-opentunnel route add api 127.0.0.1:3000
-opentunnel route add admin 127.0.0.1:4000
-opentunnel route list
-opentunnel serve
-opentunnel service status
-opentunnel service restart
-opentunnel service stop
-opentunnel service start
-opentunnel route remove api
+shuvtunnel create
+shuvtunnel info
+shuvtunnel route add api 127.0.0.1:3000
+shuvtunnel route add admin 127.0.0.1:4000
+shuvtunnel route list
+shuvtunnel serve
+shuvtunnel service status
+shuvtunnel service restart
+shuvtunnel service stop
+shuvtunnel service start
+shuvtunnel route remove api
 ```
 
 Commands use the `default` profile unless another profile is selected:
 
 ```bash
-opentunnel --profile work create --name my-workstation
-opentunnel --profile work info
-opentunnel --profile work route add api 127.0.0.1:3000
-opentunnel --profile work route list
+shuvtunnel --profile work create --name my-workstation
+shuvtunnel --profile work info
+shuvtunnel --profile work route add api 127.0.0.1:3000
+shuvtunnel --profile work route list
 ```
 
 Each profile owns one tunnel identity and set of subdomain-to-process routes.
-`opentunnel info` reads the selected profile's existing local identity and shows
+`shuvtunnel info` reads the selected profile's existing local identity and shows
 its tunnel ID, hostname and URL, certificate expiry, and configured route count.
 It does not create a tunnel when the profile has no identity.
 Path routing is intentionally not supported. Every command ensures a background
 service is running for the selected profile. Configuration changes signal that
-process to reload and reconnect. `opentunnel serve` is a blocking command that
+process to reload and reconnect. `shuvtunnel serve` is a blocking command that
 runs the service in the foreground for supervision and debugging;
-`opentunnel service start` starts it in the background.
+`shuvtunnel service start` starts it in the background.
 
 ## XDG Layout
 
@@ -46,7 +46,7 @@ Configuration is declarative, contains no credentials, and is safe to commit to
 a dotfiles repository:
 
 ```text
-$XDG_CONFIG_HOME/opentunnel/
+$XDG_CONFIG_HOME/shuvtunnel/
   default.toml
   work.toml
   personal.toml
@@ -67,7 +67,7 @@ Generated identity and credentials are stored separately and must not be
 committed:
 
 ```text
-$XDG_DATA_HOME/opentunnel/default/
+$XDG_DATA_HOME/shuvtunnel/default/
   tunnel.json
   token
   private-key.pem
@@ -77,7 +77,7 @@ $XDG_DATA_HOME/opentunnel/default/
 
 During certificate verification, `pending.json`, `token`, and
 `private-key.pem` are persisted in the profile directory. The background
-service resumes that pending CSR if `opentunnel create` is interrupted and
+service resumes that pending CSR if `shuvtunnel create` is interrupted and
 removes `pending.json` after the certificate is ready.
 
 The profile directory must use `0700` permissions. The token and private key
@@ -86,7 +86,7 @@ must use `0600` permissions.
 Persistent operational state belongs under:
 
 ```text
-$XDG_STATE_HOME/opentunnel/default/
+$XDG_STATE_HOME/shuvtunnel/default/
   daemon.log
   last-error.json
 ```
@@ -94,7 +94,7 @@ $XDG_STATE_HOME/opentunnel/default/
 Process coordination belongs under:
 
 ```text
-$XDG_RUNTIME_DIR/opentunnel/
+$XDG_RUNTIME_DIR/shuvtunnel/
   default.sock
   default.lock
 ```
@@ -102,9 +102,9 @@ $XDG_RUNTIME_DIR/opentunnel/
 When the XDG variables are absent, use the standard defaults:
 
 ```text
-~/.config/opentunnel/default.toml
-~/.local/share/opentunnel/default/
-~/.local/state/opentunnel/default/
+~/.config/shuvtunnel/default.toml
+~/.local/share/shuvtunnel/default/
+~/.local/state/shuvtunnel/default/
 ```
 
 In short:
