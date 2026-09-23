@@ -1,6 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "shuvtunnel-website",
+  "account_id": "771240435fb4f1407f2b4669085dc79d",
   "compatibility_date": "2026-08-08",
   "workers_dev": false,
   "routes": [

@@ -4,6 +4,7 @@ import { NodeRuntime, NodeServices } from "@effect/platform-node";
 import { Console, Effect, Option } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
 import { ShuvTunnelClient } from "@shuvtunnel/client/effect";
+import packageJson from "../package.json" with { type: "json" };
 import { loadShuvTunnelConfig, saveShuvTunnelConfig } from "./config.js";
 import {
   ensureService,
@@ -252,7 +253,7 @@ const route = Command.make("route").pipe(
 
 export const cli = root.pipe(Command.withSubcommands([create, serve, service, info, route]));
 
-Command.run(cli, { version: "0.0.0" }).pipe(
+Command.run(cli, { version: packageJson.version }).pipe(
   Effect.provide(ShuvTunnelClient.layer()),
   Effect.provide(NodeServices.layer),
   NodeRuntime.runMain,

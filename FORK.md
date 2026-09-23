@@ -59,6 +59,9 @@ secrets, redeploy, and accept that existing tunnels are lost.
    repository variable `SHUVTUNNEL_NPM_PUBLISH=true`, and `deploy-website.yml`
    needs `SHUVTUNNEL_DEPLOY_WEBSITE=true` plus Cloudflare secrets. Both workflows
    run only in `shuv1337/shuvtunnel`.
+5. `@shuvtunnel/client` and `@shuvtunnel/protocol` are marked `private`. The
+   `shuvtunnel` CLI bundles them, so `changeset publish` releases only the CLI.
+   `shuvtunnel --version` reads the version from `packages/cli/package.json`.
 
 ## Wire-compatibility consequences
 
