@@ -38,11 +38,17 @@ const server = createServer({ allowHalfOpen: true }, (socket) => {
     socket.destroy();
   });
 
+  // WebSocket.send throws while the bridge is still connecting. The socket stays paused until the
+  // bridge opens, so an early "end" means the client left without sending anything (e.g. a port scan).
   socket.on("data", (chunk) => {
+    if (bridge.readyState !== WebSocket.OPEN) return socket.destroy();
     console.log(`Forwarding ${chunk.length} bytes to Worker`);
     bridge.send(chunk);
   });
-  socket.on("end", () => bridge.send(JSON.stringify({ type: "end" })));
+  socket.on("end", () => {
+    if (bridge.readyState === WebSocket.OPEN) bridge.send(JSON.stringify({ type: "end" }));
+    else bridge.close();
+  });
   socket.on("error", () => bridge.close());
   socket.on("close", () => bridge.close());
 });
