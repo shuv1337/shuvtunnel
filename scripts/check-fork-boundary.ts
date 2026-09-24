@@ -66,6 +66,9 @@ expectContains("FORK.md", "https://github.com/anomalyco/opentunnel", "upstream a
 expectContains("FORK.md", "MIT", "license attribution");
 expectContains("README.md", "https://github.com/anomalyco/opentunnel", "upstream attribution");
 expectContains("packages/cli/CHANGELOG.md", "aac6b95", "upstream release history");
+expectContains("packages/website/src/App.tsx", 'id="credits"', "website credits section");
+expectContains("packages/website/src/App.tsx", "https://github.com/anomalyco/opentunnel", "website upstream link");
+expectContains("packages/website/index.html", "slopfork of opentunnel.", "link-preview attribution");
 
 // Retired branding: every remaining match must be an accounted-for exception.
 const retired = /open[-_ ]?tunnel|anomalyco/i;
@@ -76,6 +79,12 @@ const allowed: ReadonlyArray<readonly [RegExp, RegExp]> = [
   [/^README\.md$/, /anomalyco\/opentunnel|upstream OpenTunnel|`opentunnel-shuv(-certificates)?`/],
   [/^packages\/cli\/CHANGELOG\.md$/, /Open Tunnel CLI/],
   [/^packages\/server\/wrangler\.jsonc$/, /"opentunnel-shuv(-certificates)?"/],
+  // The website credits upstream on purpose: the fork note, the credits section, and link previews.
+  [/^packages\/website\/index\.html$/, /slopfork of opentunnel\./],
+  [
+    /^packages\/website\/src\/App\.tsx$/,
+    /"https:\/\/github\.com\/anomalyco\/opentunnel"|"https:\/\/opentunnel\.xyz"|>opentunnel<\/a>|>github\.com\/anomalyco\/opentunnel<\/a>|>opentunnel\.xyz<\/a>|shuvtunnel is opentunnel by anomaly/,
+  ],
 ];
 const tracked = (await $`git ls-files -z --cached --others --exclude-standard`.cwd(root).text())
   .split("\0")
@@ -105,7 +114,10 @@ if (process.argv.includes("--dist")) {
   if (!existsSync(join(root, site))) fail(`${site}: missing; build the website first`);
   else {
     const text = read(site);
-    if (retired.test(text)) fail(`${site}: distributable exposes retired upstream identity`);
+    if (!text.includes("slopfork of opentunnel.")) fail(`${site}: missing upstream attribution`);
+    if (retired.test(text.replaceAll("slopfork of opentunnel.", ""))) {
+      fail(`${site}: distributable exposes retired upstream identity`);
+    }
     if (!text.includes("<title>shuvtunnel")) fail(`${site}: title is not shuvtunnel`);
   }
 }

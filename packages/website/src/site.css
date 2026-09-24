@@ -48,7 +48,7 @@ h2 { margin: 0 0 var(--s3); font-size: clamp(20px, 3.2vw, 27px); font-weight: 50
 .tabs button:hover, .tabs a:hover, .tabs button[data-current] { opacity: 1; }
 .command { overflow-x: auto; white-space: nowrap; }
 
-.usage, .sdk, .how, .privacy { margin-top: var(--s5); }
+.usage, .sdk, .how, .privacy, .credits { margin-top: var(--s5); }
 
 pre { margin: 0; overflow-x: auto; color: #fff; font: clamp(14px, 2vw, 17px)/1.8 var(--font-text), monospace; }
 .output { opacity: .55; }
@@ -60,9 +60,13 @@ pre { margin: 0; overflow-x: auto; color: #fff; font: clamp(14px, 2vw, 17px)/1.8
 /* Lines set by justice: one per span, never rewrapped by the browser. */
 .justified-line { display: block; white-space: nowrap; }
 
-.privacy-list { display: grid; margin: 0; gap: var(--s3); }
+.privacy-list { display: grid; grid-template-columns: minmax(0, 1fr); margin: 0; gap: var(--s3); }
 .privacy-list dt { margin-bottom: var(--s1); font-size: clamp(14px, 2vw, 17px); line-height: 1.7; }
 .privacy-list dd { margin: 0; font-size: clamp(14px, 2vw, 17px); line-height: 1.7; opacity: .55; }
+.credits-links { display: flex; flex-wrap: wrap; gap: 8px 24px; }
+.credits-links a, .fork-note a { text-decoration: underline; text-underline-offset: 3px; }
+
+.fork-note { margin: var(--s2) 0 0; font-size: clamp(14px, 2vw, 17px); line-height: 1.7; opacity: .55; }
 
 /* The diagram takes the old drawing's slot and may run a little wider than the column, centred on it. */
 .diagram-wrap { --bleed: min(940px, 100vw - 48px); width: var(--bleed); margin: var(--s4) 0 0 calc((100% - var(--bleed)) / 2); }

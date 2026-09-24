@@ -9,6 +9,8 @@ import { Ink } from "./Ink"
 import { Splatter } from "./Splatter"
 
 const github = "https://github.com/shuv1337/shuvtunnel"
+const upstream = "https://github.com/anomalyco/opentunnel"
+const upstreamSite = "https://opentunnel.xyz"
 
 const installs = {
   npm: "npm i -g shuvtunnel",
@@ -23,6 +25,7 @@ function Install() {
     <div className="tabs" role="tablist">
       {(Object.keys(installs) as Manager[]).map(name => <button key={name} type="button" role="tab" aria-selected={manager === name} data-current={manager === name || undefined} onClick={() => setManager(name)}>{name}</button>)}
       <a href={github} target="_blank" rel="noopener">github</a>
+      <a href={upstream} target="_blank" rel="noopener">opentunnel</a>
     </div>
     <div className="command">$ {installs[manager]}</div>
   </div>
@@ -51,6 +54,8 @@ export function App() {
       <div className="diagram-wrap"><div className="diagram"><TunnelScene /></div></div>
 
       <Justified className="description" text="a cli and sdk to create end-to-end encrypted public urls for apps running on your machine reachable from anywhere in the world" />
+
+      <p className="fork-note">a cheeky slopfork of <a href={upstream} target="_blank" rel="noopener">opentunnel</a> by anomaly. their idea, their code, our coat of paint. <a href="#credits">credits</a></p>
 
       <Install />
 
@@ -105,6 +110,28 @@ console.log(connection.routes[0].hostname)
           <div>
             <dt>put auth in the services themselves</dt>
             <Justified as="dd" text="anything sensitive behind a tunnel should authenticate on its own." />
+          </div>
+        </dl>
+      </section>
+
+      <section className="credits" id="credits">
+        <h2>credits</h2>
+        <dl className="privacy-list">
+          <div>
+            <dt>this is a fork, not the original</dt>
+            <Justified as="dd" text="shuvtunnel is opentunnel by anomaly, renamed and pointed at shuv.zip. the blind tls design, the protocol, the cli, the sdk and this very page are their work. we just forked it and put a new name on it." />
+          </div>
+          <div>
+            <dt>what we actually added</dt>
+            <Justified as="dd" text="a new name, a relay that no longer falls over when you port scan it, some retries for a slow certificate authority, and whatever bugs came along for the ride." />
+          </div>
+          <div>
+            <dt>no affiliation</dt>
+            <Justified as="dd" text="anomaly doesn't run, endorse or support shuvtunnel. if something breaks here, that's on us, so please don't file it upstream." />
+          </div>
+          <div>
+            <dt>want the real thing?</dt>
+            <dd className="credits-links"><a href={upstream} target="_blank" rel="noopener">github.com/anomalyco/opentunnel</a><a href={upstreamSite} target="_blank" rel="noopener">opentunnel.xyz</a></dd>
           </div>
         </dl>
       </section>
