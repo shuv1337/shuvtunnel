@@ -283,12 +283,14 @@ export class ShuvTunnelClient extends ServiceMap.Service<
             ensure,
             remove: Effect.fn("ShuvTunnelClient.tunnel.remove")(function* (input) {
               const profile = profileName(input);
-              const identity = yield* storage.load(profile);
+              // A tunnel whose certificate never completed has only a pending identity but still exists on the server.
+              const identity = (yield* storage.load(profile)) ?? (yield* storage.loadPending(profile));
               if (!identity) return;
               const authorized = yield* api.authorized(Tunnel.Token.makeUnsafe(identity.token));
               yield* authorized.tunnel["tunnel.remove"]({
                 params: { id: Tunnel.ID.makeUnsafe(identity.id) },
               }).pipe(
+                Effect.catchTag("TunnelNotFoundError", () => Effect.void),
                 Effect.mapError((cause) => clientError("Failed to remove tunnel", cause)),
               );
               yield* storage.remove(profile);
