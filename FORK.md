@@ -54,7 +54,15 @@ secrets, redeploy, and accept that existing tunnels are lost.
 2. The deployment targets the `shuv.zip` zone in Cloudflare account
    `771240435fb4f1407f2b4669085dc79d`.
 3. Certificate issuance is split into durable Workflow steps. DNS propagation
-   and ACME polling use `step.sleep` instead of in-step waits.
+   and ACME polling use `step.sleep` instead of in-step waits. The ACME account
+   is registered once per issuance, every step retries with exponential backoff,
+   non-ACME error responses are logged, and external account binding is sent only
+   when the CA's directory sets `externalAccountRequired`.
+
+   Let's Encrypt is not an option for `ACME_URL`. Its ACME API is served through
+   Cloudflare, and Worker subrequests to it fail with 525 (workerd#776, confirmed
+   for both production and staging on 2026-09-24). ZeroSSL and Google Trust
+   Services are reachable from Workers.
 4. CI publishing and website deployment are opt-in. `publish.yml` needs the
    repository variable `SHUVTUNNEL_NPM_PUBLISH=true`, and `deploy-website.yml`
    needs `SHUVTUNNEL_DEPLOY_WEBSITE=true` plus Cloudflare secrets. Both workflows

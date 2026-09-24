@@ -80,6 +80,20 @@ interface Challenge {
 
 const unquote = (value: string) => value.replace(/^"|"$/g, "");
 
+// The ACME client reports non-ACME error responses only as "Wrong Content-Type"; log what the CA sent.
+const acmeFetch: typeof fetch = async (input, init) => {
+  const response = await fetch(input, init);
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!response.ok && !contentType.includes("problem+json")) {
+    const body = await response.clone().text().catch(() => "");
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    console.error(
+      `ACME ${init?.method ?? "GET"} ${url.host}${url.pathname} -> ${response.status} ${contentType}: ${body.slice(0, 300)}`,
+    );
+  }
+  return response;
+};
+
 export class CertificateWorkflow extends WorkflowEntrypoint<Cloudflare.Env, CertificateWorkflowParams> {
   private async update(tunnelID: string, certificateID: string, state: Certificate.State) {
     const updated = await env.TUNNELS.getByName(tunnelID).updateCertificate(certificateID, state);
@@ -127,7 +141,7 @@ export class CertificateWorkflow extends WorkflowEntrypoint<Cloudflare.Env, Cert
       ),
     };
 
-    const client = await ApiClient.create(accountKey, env.ACME_URL, { fetch, crypto });
+    const client = await ApiClient.create(accountKey, env.ACME_URL, { fetch: acmeFetch, crypto });
     if (accountId) {
       (client as unknown as { accountId: string }).accountId = accountId;
     } else {

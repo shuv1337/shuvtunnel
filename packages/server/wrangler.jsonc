@@ -14,7 +14,7 @@
   ],
   "vars": {
     "SHUVTUNNEL_DOMAIN": "shuv.zip",
-    "ACME_URL": "https://acme-v02.api.letsencrypt.org/directory",
+    "ACME_URL": "https://acme.zerossl.com/v2/DV90",
     "ACME_EMAIL": "shuv@shuv.dev",
     "ACME_DNS_PROPAGATION_TIMEOUT_MS": "10000",
     "CLOUDFLARE_ZONE_ID": "c3873d6934c4d42ed652225530ad9cd6"
