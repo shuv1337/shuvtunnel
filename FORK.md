@@ -16,6 +16,10 @@ as part of `bun run ready` and CI.
 The upstream commit history is preserved. Entries in `packages/cli/CHANGELOG.md`
 up to and including 0.0.30 are upstream OpenTunnel releases.
 
+The website credits upstream above the fold, in the install links, in its
+link-preview description, and in a closing credits section. The boundary
+check requires all of these, so the credit cannot silently disappear.
+
 ## Canonical identity
 
 These names are what the fork ships and documents:
