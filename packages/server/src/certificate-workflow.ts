@@ -131,12 +131,15 @@ export class CertificateWorkflow extends WorkflowEntrypoint<Cloudflare.Env, Cert
     if (accountId) {
       (client as unknown as { accountId: string }).accountId = accountId;
     } else {
-      // External account binding is required by ZeroSSL and ignored when unset (e.g. Let's Encrypt).
-      const eab = env.ACME_EAB_KID && env.ACME_EAB_HMAC_KEY
-        ? { kid: env.ACME_EAB_KID, challenge: env.ACME_EAB_HMAC_KEY }
-        : undefined;
-      if (eab) {
-        const directory = await client.getDirectory();
+      // Only CAs that advertise externalAccountRequired (ZeroSSL) get the EAB credentials, so
+      // switching ACME_URL between ZeroSSL and Let's Encrypt needs no secret changes.
+      const directory = await client.getDirectory();
+      let eab: { kid: string; challenge: string } | undefined;
+      if (directory.meta?.externalAccountRequired) {
+        if (!env.ACME_EAB_KID || !env.ACME_EAB_HMAC_KEY) {
+          throw new Error("This ACME server requires ACME_EAB_KID and ACME_EAB_HMAC_KEY");
+        }
+        eab = { kid: env.ACME_EAB_KID, challenge: env.ACME_EAB_HMAC_KEY };
         await patchExternalAccountBinding(client, accountKey.publicKey, eab.kid, eab.challenge, directory.newAccount);
       }
       await client.newAccount({
