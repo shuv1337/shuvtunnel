@@ -7,10 +7,12 @@ import { mkdir } from "node:fs/promises"
 import { join, resolve } from "node:path"
 import { chromium } from "playwright-core"
 import { createServer } from "vite"
+import react from "@vitejs/plugin-react"
 
-const root = resolve(import.meta.dirname, ".."), outDir = join(root, "public"), file = join(outDir, "og.png")
+const root = resolve(import.meta.dirname, "../../.."), outDir = join(root, "packages/website/public"), file = join(outDir, "og.png")
 
-const server = await createServer({ root, configFile: join(root, "vite.config.ts"), logLevel: "error", server: { host: "127.0.0.1", port: 0, strictPort: false } })
+// Share art needs only Vite/React, not Worker execution or deployment credentials.
+const server = await createServer({ root, configFile: false, publicDir: outDir, plugins: [react()], logLevel: "error", server: { host: "127.0.0.1", port: 0, strictPort: false } })
 await server.listen()
 const address = server.httpServer?.address()
 if (!address || typeof address === "string") throw new Error("The dev server did not report a port")

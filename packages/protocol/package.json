@@ -1,14 +1,14 @@
 {
   "name": "@shuvtunnel/protocol",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/shuv1337/shuvtunnel.git"
+    "url": "git+https://github.com/shuv1337/shuvtunnel.git",
+    "directory": "packages/protocol"
   },
   "files": [
-    "dist"
+    "src"
   ],
   "type": "module",
   "exports": {
@@ -21,7 +21,7 @@
   },
   "scripts": {
     "build": "tsc --build",
-    "prepublishOnly": "bun run build"
+    "test": "bun test"
   },
   "dependencies": {
     "effect": "catalog:"
@@ -30,6 +30,8 @@
     "@types/node": "catalog:",
     "@typescript/native-preview": "catalog:",
     "bumpp": "catalog:",
-    "typescript": "catalog:"
-  }
+    "typescript": "catalog:",
+    "@types/bun": "catalog:"
+  },
+  "description": "ShuvTunnel wire protocol: schemas, bridge framing, and the HTTP API contract"
 }

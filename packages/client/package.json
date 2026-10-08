@@ -1,28 +1,42 @@
 {
   "name": "@shuvtunnel/client",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.1",
+  "description": "ShuvTunnel SDK for Bun: expose local services through a blind TLS tunnel",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shuv1337/shuvtunnel.git",
+    "directory": "packages/client"
+  },
   "type": "module",
+  "files": [
+    "src"
+  ],
   "exports": {
     ".": "./src/promise/index.ts",
     "./promise": "./src/promise/index.ts",
     "./effect": "./src/effect/index.ts"
   },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "bun": ">=1.4.0"
+  },
   "scripts": {
-    "build": "tsc --build"
+    "build": "tsc --build",
+    "test": "bun test"
   },
   "dependencies": {
     "@shuvtunnel/protocol": "workspace:*",
-    "@peculiar/x509": "catalog:",
-    "effect": "catalog:",
-    "reflect-metadata": "catalog:",
-    "ws": "catalog:"
+    "effect": "catalog:"
   },
   "devDependencies": {
+    "@peculiar/x509": "catalog:",
+    "@types/bun": "catalog:",
     "@types/node": "catalog:",
-    "@types/ws": "catalog:",
     "@typescript/native-preview": "catalog:",
+    "reflect-metadata": "catalog:",
     "typescript": "catalog:"
   }
 }

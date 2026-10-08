@@ -43,7 +43,6 @@ type PulseProps = {
 }
 
 export function Pulse({ d, clock, duration, delay, reflection, underlayMask, ease = pulseEase }: PulseProps) {
-  const path = useRef<SVGPathElement>(null)
   const dot = useRef<SVGCircleElement>(null)
   const ring = useRef<SVGCircleElement>(null)
   const bands = useRef<(SVGPathElement | null)[]>([])
@@ -53,8 +52,8 @@ export function Pulse({ d, clock, duration, delay, reflection, underlayMask, eas
   const bloom = useId()
 
   useEffect(() => {
-    const p = path.current, c = dot.current, r = ring.current
-    if (!p || !c || !r) return
+    const c = dot.current, r = ring.current
+    if (!c || !r) return
     const pop = LOCKED_POP
     // Path coordinates are local and depend only on d. Measuring a detached copy avoids flushing the live
     // SVG's style/layout after every trail update.
@@ -63,6 +62,7 @@ export function Pulse({ d, clock, duration, delay, reflection, underlayMask, eas
     const length = geometry.getTotalLength()
     const at = (progress: number) => geometry.getPointAtLength(length * progress)
     const end = at(1)
+    c.setAttribute("cx", String(end.x)); c.setAttribute("cy", String(end.y))
     const border = reflectedBorder.current, light = reflectedLight.current
     let lastLightPosition = "", lastLightStrength = -1
     // Reuse the dot's sampled point. No second clock, geometry query, or layout read.
@@ -117,36 +117,25 @@ export function Pulse({ d, clock, duration, delay, reflection, underlayMask, eas
       trail(now, t)
       if (t < -gathering) { hide(); return }
       if (t < 0) {
-        // Gather: a faint disc shrinks onto the origin while the dot fades up inside it.
+        // Gather: a faint disc shrinks onto the origin while light condenses inside it.
         const g = easeOutCubic((t + gathering) / gathering)
         const start = at(0)
         reflect(start, Math.pow(g, 1.5))
-        c.setAttribute("cx", String(start.x)); c.setAttribute("cy", String(start.y))
-        c.setAttribute("fill", palette.dot); c.setAttribute("stroke", "none")
-        c.setAttribute("r", String(RADIUS * g))
-        c.setAttribute("opacity", String(Math.pow(g, 1.5)))
+        c.setAttribute("r", "0")
         r.setAttribute("cx", String(start.x)); r.setAttribute("cy", String(start.y))
         r.setAttribute("r", String(RADIUS + 14 * (1 - g)))
         r.setAttribute("opacity", String(0.5 * Math.sin(g * Math.PI)))
         return
       }
       if (t < traveling) {
-        const point = at(ease.at(t / traveling))
-        reflect(point, 1)
-        c.setAttribute("cx", String(point.x)); c.setAttribute("cy", String(point.y))
-        c.setAttribute("r", String(RADIUS))
-        c.setAttribute("fill", palette.dot); c.setAttribute("stroke", "none")
-        c.setAttribute("opacity", "1")
+        reflect(at(ease.at(t / traveling)), 1)
+        c.setAttribute("r", "0")
         r.setAttribute("opacity", "0")
       } else if (t < traveling + absorption) {
         const q = (t - traveling) / absorption
         reflect(end, Math.pow(1 - q, 2))
-        c.setAttribute("cx", String(end.x)); c.setAttribute("cy", String(end.y))
-        // The dot IS the ring. A radius-2 circle with a width-4 stroke starts as the same solid radius-4 dot;
-        // its centre opens as the stroke thins.
+        // The landing ring expands and fades as the shape plugs into its slot.
         const opening = smoothstep(q / 0.24)
-        c.setAttribute("fill", "none")
-        c.setAttribute("stroke", palette.dot)
         c.setAttribute("stroke-width", String(RADIUS + (1.5 - RADIUS) * opening))
         c.setAttribute("r", String(RADIUS / 2 + RADIUS / 2 * opening + pop.grow * pop.ease(q)))
         c.setAttribute("opacity", String((1 + (pop.peak - 1) * opening) * Math.pow(1 - q, pop.fade)))
@@ -171,13 +160,12 @@ export function Pulse({ d, clock, duration, delay, reflection, underlayMask, eas
         <stop offset="1" stopColor={palette.dot} stopOpacity="0" />
       </radialGradient>}
     </defs>
-    <path ref={path} d={d} fill="none" stroke="none" />
     <g mask={underlayMask}>
       {reflection && <path ref={reflectedBorder} d={reflection.borders} fill="none" stroke={`url(#${bloom}-reflection)`} strokeWidth={reflection.width ?? 1} opacity={0} />}
       {Array.from({ length: BANDS }, (_, i) => <path key={i} ref={(el) => { bands.current[i] = el }} className="pulse-trail" fill="none" stroke={palette.dot} strokeWidth={1.6} strokeOpacity={0} strokeLinecap="butt" visibility="hidden" />)}
       <circle ref={ring} className="pulse-ring" fill={`url(#${bloom})`} r={0} opacity={0} />
     </g>
-    <circle ref={dot} className="pulse-dot" r={0} fill={palette.dot} />
+    <circle ref={dot} className="pulse-dot" r={0} fill="none" stroke={palette.dot} />
   </g>
 }
 

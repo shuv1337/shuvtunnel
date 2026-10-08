@@ -5,11 +5,13 @@ import {
 } from "../effect/client.js";
 import type {
   ShuvTunnelClientEvent,
+  ShuvTunnelConnectOptions,
   ShuvTunnelIdentity,
   ShuvTunnelPendingIdentity,
   ShuvTunnelProfileOptions,
   ShuvTunnelProvisionStage,
-  ShuvTunnelRoute,
+  ShuvTunnelRoutes,
+  ShuvTunnelStatus,
   ShuvTunnelStoredTunnel,
 } from "../effect/types.js";
 import { toEffectStorage, type ShuvTunnelStorage } from "./storage.js";
@@ -21,8 +23,14 @@ export interface ShuvTunnelClientOptions {
 
 export interface ShuvTunnelConnection {
   readonly tunnel: ShuvTunnelIdentity;
-  readonly routes: ReadonlyArray<ShuvTunnelRoute>;
   readonly events: AsyncIterable<ShuvTunnelClientEvent>;
+  readonly status: () => ShuvTunnelStatus;
+  /**
+   * Replaces the routes. Changing only targets applies immediately; adding or
+   * removing names re-attaches the bridge.
+   */
+  readonly setRoutes: (routes: ShuvTunnelRoutes) => Promise<void>;
+  /** Settles when the tunnel stops after a fatal error or is closed. */
   readonly closed: Promise<void>;
   readonly close: () => Promise<void>;
 }
@@ -30,15 +38,6 @@ export interface ShuvTunnelConnection {
 export interface ShuvTunnelPromiseClient {
   readonly profile: {
     readonly list: () => Promise<ReadonlyArray<string>>;
-  };
-  readonly route: {
-    readonly list: (options?: ShuvTunnelProfileOptions) => Promise<ReadonlyArray<ShuvTunnelRoute>>;
-    readonly add: (
-      options: ShuvTunnelProfileOptions & { readonly name: string; readonly target: string },
-    ) => Promise<ShuvTunnelRoute>;
-    readonly remove: (
-      options: ShuvTunnelProfileOptions & { readonly name: string },
-    ) => Promise<void>;
   };
   readonly tunnel: {
     readonly list: () => Promise<ReadonlyArray<ShuvTunnelStoredTunnel>>;
@@ -53,16 +52,19 @@ export interface ShuvTunnelPromiseClient {
     ) => Promise<ShuvTunnelIdentity | undefined>;
     readonly create: (
       options?: ShuvTunnelProfileOptions & {
-        readonly name?: string;
         readonly onProgress?: (stage: ShuvTunnelProvisionStage) => void;
       },
     ) => Promise<ShuvTunnelIdentity>;
     readonly ensure: (
-      options?: ShuvTunnelProfileOptions & { readonly name?: string },
+      options?: ShuvTunnelProfileOptions,
     ) => Promise<ShuvTunnelIdentity>;
     readonly remove: (options?: ShuvTunnelProfileOptions) => Promise<void>;
+    /**
+     * Starts forwarding routes for the profile's tunnel, creating it if
+     * needed. Resolves once the bridge first attaches; reconnects until closed.
+     */
     readonly connect: (
-      options?: ShuvTunnelProfileOptions & { readonly signal?: AbortSignal },
+      options: ShuvTunnelConnectOptions & { readonly signal?: AbortSignal },
     ) => Promise<ShuvTunnelConnection>;
   };
   readonly dispose: () => Promise<void>;
@@ -80,11 +82,6 @@ export function create(options: ShuvTunnelClientOptions = {}): ShuvTunnelPromise
 
   return {
     profile: { list: () => withClient((client) => client.profile.list()) },
-    route: {
-      list: (input) => withClient((client) => client.route.list(input)),
-      add: (input) => withClient((client) => client.route.add(input)),
-      remove: (input) => withClient((client) => client.route.remove(input)),
-    },
     tunnel: {
       list: () => withClient((client) => client.tunnel.list()),
       get: (input) => withClient((client) => client.tunnel.get(input)),
@@ -95,18 +92,26 @@ export function create(options: ShuvTunnelClientOptions = {}): ShuvTunnelPromise
       remove: (input) => withClient((client) => client.tunnel.remove(input)),
       connect: async (input) => {
         const scope = await runtime.runPromise(Scope.make());
-        const connection = await runtime.runPromise(
-          Effect.flatMap(ShuvTunnelClient.asEffect(), (client) => client.tunnel.connect(input)).pipe(
-            Effect.provideService(Scope.Scope, scope),
-          ),
-        );
-        const closeScope = () => runtime.runPromise(Scope.close(scope, Exit.succeed(undefined)));
+        const closeScope = () => runtime.runPromise(Scope.close(scope, Exit.void));
+        const connection = await runtime
+          .runPromise(
+            Effect.flatMap(ShuvTunnelClient.asEffect(), (client) => client.tunnel.connect(input)).pipe(
+              Effect.provideService(Scope.Scope, scope),
+            ),
+          )
+          .catch(async (error) => {
+            await closeScope();
+            throw error;
+          });
+        const close = () => runtime.runPromise(connection.close).finally(closeScope);
+        input.signal?.addEventListener("abort", () => void close(), { once: true });
         return {
           tunnel: connection.tunnel,
-          routes: connection.routes,
           events: Stream.toAsyncIterable(connection.events),
+          status: () => runtime.runSync(connection.status),
+          setRoutes: (routes) => runtime.runPromise(connection.setRoutes(routes)),
           closed: runtime.runPromise(connection.closed).finally(closeScope),
-          close: () => runtime.runPromise(connection.close).finally(closeScope),
+          close,
         };
       },
     },

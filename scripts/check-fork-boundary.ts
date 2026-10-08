@@ -1,8 +1,5 @@
 #!/usr/bin/env bun
-// Enforces the identity contract in FORK.md: canonical ShuvTunnel names, the
-// deliberately kept compatibility identifiers, and upstream attribution.
-// `--dist` additionally inspects built output (run after `bun run --filter '*' build`).
-
+// Enforces FORK.md across source, native packaging and the unified Worker build.
 import { $ } from "bun";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -10,121 +7,117 @@ import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const failures: string[] = [];
-const fail = (message: string) => failures.push(message);
 const read = (path: string) => readFileSync(join(root, path), "utf8");
 const json = (path: string) => JSON.parse(read(path));
-const jsonc = (path: string) =>
-  JSON.parse(read(path).replace(/^\s*\/\/.*$/gm, "").replace(/,(\s*[}\]])/g, "$1"));
-
-const expectEqual = (label: string, actual: unknown, expected: unknown) => {
-  if (actual !== expected) fail(`${label}: expected ${JSON.stringify(expected)}, found ${JSON.stringify(actual)}`);
+const toml = (path: string): any => Bun.TOML.parse(read(path));
+const equal = (label: string, actual: unknown, expected: unknown) => {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) failures.push(`${label}: expected ${JSON.stringify(expected)}, found ${JSON.stringify(actual)}`);
 };
-const expectContains = (path: string, needle: string, why: string) => {
-  if (!read(path).includes(needle)) fail(`${path}: missing ${JSON.stringify(needle)} (${why})`);
+const contains = (path: string, value: string) => {
+  if (!read(path).includes(value)) failures.push(`${path}: missing ${JSON.stringify(value)}`);
 };
-
-const REPOSITORY = "git+https://github.com/shuv1337/shuvtunnel.git";
-
-// Canonical package, binary, and repository identity.
-expectEqual("package.json name", json("package.json").name, "@shuvtunnel/root");
+const repository = "git+https://github.com/shuv1337/shuvtunnel.git";
+equal("root name", json("package.json").name, "@shuvtunnel/root");
 const cli = json("packages/cli/package.json");
-expectEqual("packages/cli name", cli.name, "shuvtunnel");
-expectEqual("packages/cli bin", JSON.stringify(cli.bin), JSON.stringify({ shuvtunnel: "dist/index.js" }));
-expectEqual("packages/cli repository", cli.repository?.url, REPOSITORY);
+equal("CLI name", cli.name, "shuvtunnel");
+equal("CLI bin", cli.bin, { shuvtunnel: "./bin/shuvtunnel.cjs" });
+equal("CLI repository", cli.repository?.url, repository);
 for (const pkg of ["client", "protocol", "server", "website"]) {
   const manifest = json(`packages/${pkg}/package.json`);
-  expectEqual(`packages/${pkg} name`, manifest.name, `@shuvtunnel/${pkg}`);
-  if (manifest.repository) expectEqual(`packages/${pkg} repository`, manifest.repository.url, REPOSITORY);
+  equal(`${pkg} name`, manifest.name, `@shuvtunnel/${pkg}`);
+  if (manifest.repository) equal(`${pkg} repository`, manifest.repository.url, repository);
+  if (["client", "protocol"].includes(pkg)) equal(`${pkg} public`, manifest.private ?? false, false);
 }
-for (const pkg of ["cli", "client", "protocol", "server"]) {
-  expectEqual(`packages/${pkg} license`, json(`packages/${pkg}/package.json`).license, "MIT");
+for (const pkg of ["cli", "client", "protocol", "server"]) equal(`${pkg} license`, json(`packages/${pkg}/package.json`).license, "MIT");
+const cargo = toml("Cargo.toml");
+equal("Cargo version", cargo.workspace.package.version, cli.version);
+equal("Cargo repository", cargo.workspace.package.repository, "https://github.com/shuv1337/shuvtunnel");
+for (const name of ["shuvtunnel", "shuvtunnel-cli"]) {
+  equal(`${name} crate`, toml(`crates/${name}/Cargo.toml`).package.name, name);
+  contains("Cargo.lock", `name = "${name}"\nversion = "${cli.version}"`);
 }
+equal("native binary", toml("crates/shuvtunnel-cli/Cargo.toml").bin[0].name, "shuvtunnel");
+equal("Rust library dependency", toml("crates/shuvtunnel-cli/Cargo.toml").dependencies.shuvtunnel.version, cli.version);
+contains("packages/cli/bin/shuvtunnel.cjs", '"@shuvtunnel/cli-"');
+contains("packages/cli/script/publish.ts", 'bin: { shuvtunnel: "bin/shuvtunnel" }');
+contains("packages/cli/script/release.ts", 'const repo = "shuv1337/shuvtunnel"');
+contains("packages/cli/script/release.ts", "shuv1337/homebrew-tap.git");
+contains("packages/cli/script/release.ts", "aur.archlinux.org/shuvtunnel-bin.git");
+contains("packages/protocol/src/bridge-protocol.ts", 'WEBSOCKET_SUBPROTOCOL = "shuvtunnel"');
+contains("crates/shuvtunnel/src/protocol/bridge.rs", '"shuvtunnel"');
+contains("packages/protocol/src/api/api.ts", 'HttpApi.make("shuvtunnel")');
+contains("packages/client/src/effect/client.ts", '"https://shuv.zip"');
+contains("crates/shuvtunnel/src/protocol/api.rs", '"https://shuv.zip"');
+contains("packages/client/src/effect/storage.ts", '"shuvtunnel"');
+contains("crates/shuvtunnel/src/paths.rs", '"shuvtunnel"');
+contains("packages/website/src/wordmark.tsx", 'WORDMARK = "SHUVTUNNEL"');
+contains("cloudflare.config.ts", 'production ? "opentunnel-shuv" : `shuvtunnel-${mode}`');
+contains("cloudflare.config.ts", 'production ? "opentunnel-shuv-certificates" : `shuvtunnel-certificates-${mode}`');
+contains("cloudflare.config.ts", 'production ? "shuv.zip" : `${mode}.shuv.zip`');
+contains("cloudflare.config.ts", "SHUVTUNNEL_DOMAIN: bindings.text(domain)");
+contains("cloudflare.config.ts", 'pattern: "shuv.zip/*", zone: "shuv.zip"');
+contains("cloudflare.config.ts", '"c3873d6934c4d42ed652225530ad9cd6"');
+contains("package.json", "CLOUDFLARE_ACCOUNT_ID=771240435fb4f1407f2b4669085dc79d");
+contains(".github/workflows/publish.yml", "github.repository == 'shuv1337/shuvtunnel' && vars.SHUVTUNNEL_NPM_PUBLISH == 'true'");
+contains(".github/workflows/deploy.yml", "github.repository == 'shuv1337/shuvtunnel' && vars.SHUVTUNNEL_DEPLOY_WEBSITE == 'true'");
+for (const path of ["FORK.md", "README.md", "packages/website/src/App.tsx"]) contains(path, "https://github.com/anomalyco/opentunnel");
+contains("packages/cli/CHANGELOG.md", "aa5e197");
+contains("packages/cli/CHANGELOG.md", "aac6b95");
+contains("packages/website/src/App.tsx", 'className="fork-note"');
+contains("packages/website/src/App.tsx", 'id="credits"');
+contains("packages/website/src/App.tsx", '<a href={upstream} target="_blank" rel="noopener">opentunnel</a>');
+contains("index.html", "slopfork of opentunnel.");
 
-// Canonical runtime identity.
-expectContains("packages/cli/src/index.ts", 'Command.make("shuvtunnel")', "CLI command name");
-expectContains("packages/protocol/src/bridge-protocol.ts", 'WEBSOCKET_SUBPROTOCOL = "shuvtunnel"', "bridge subprotocol");
-expectContains("packages/protocol/src/api/api.ts", 'HttpApi.make("shuvtunnel")', "HTTP API name");
-expectContains("packages/client/src/effect/client.ts", '"https://shuv.zip"', "default API URL");
-expectContains("packages/client/src/effect/storage.ts", '"shuvtunnel"', "XDG data directory");
-expectContains("packages/cli/src/config.ts", '"shuvtunnel"', "XDG config directory");
-expectContains("packages/website/src/wordmark.tsx", 'WORDMARK = "SHUVTUNNEL"', "website wordmark");
-
-const server = jsonc("packages/server/wrangler.jsonc");
-expectEqual("server SHUVTUNNEL_DOMAIN", server.vars?.SHUVTUNNEL_DOMAIN, "shuv.zip");
-expectEqual("server API route", server.routes?.[0]?.pattern, "shuv.zip/api/*");
-
-// Compatibility identifiers that must survive byte-for-byte (see FORK.md).
-expectEqual("server Worker name (compatibility)", server.name, "opentunnel-shuv");
-expectEqual(
-  "certificate Workflow name (compatibility)",
-  server.workflows?.find((workflow: { binding: string }) => workflow.binding === "CERTIFICATES")?.name,
-  "opentunnel-shuv-certificates",
-);
-
-// Provenance.
-expectContains("FORK.md", "https://github.com/anomalyco/opentunnel", "upstream attribution");
-expectContains("FORK.md", "MIT", "license attribution");
-expectContains("README.md", "https://github.com/anomalyco/opentunnel", "upstream attribution");
-expectContains("packages/cli/CHANGELOG.md", "aac6b95", "upstream release history");
-expectContains("packages/website/src/App.tsx", 'id="credits"', "website credits section");
-expectContains("packages/website/src/App.tsx", "https://github.com/anomalyco/opentunnel", "website upstream link");
-expectContains("packages/website/index.html", "slopfork of opentunnel.", "link-preview attribution");
-
-// Retired branding: every remaining match must be an accounted-for exception.
 const retired = /open[-_ ]?tunnel|anomalyco/i;
 const allowed: ReadonlyArray<readonly [RegExp, RegExp]> = [
   [/^FORK\.md$/, /./],
-  [/^AGENTS\.md$/, /anomalyco\/opentunnel|`opentunnel-shuv(-certificates)?`/],
   [/^scripts\/check-fork-boundary\.ts$/, /./],
-  [/^README\.md$/, /anomalyco\/opentunnel|upstream OpenTunnel|`opentunnel-shuv(-certificates)?`/],
+  [/^AGENTS\.md$/, /anomalyco\/opentunnel|`opentunnel-shuv(-certificates)?`/],
+  [/^README\.md$/, /anomalyco\/opentunnel/],
+  [/^cloudflare\.config\.ts$/, /production \? "opentunnel-shuv(-certificates)?"/],
   [/^packages\/cli\/CHANGELOG\.md$/, /Open Tunnel CLI/],
-  [/^packages\/server\/wrangler\.jsonc$/, /"opentunnel-shuv(-certificates)?"/],
-  // The website credits upstream on purpose: the fork note, the credits section, and link previews.
-  [/^packages\/website\/index\.html$/, /slopfork of opentunnel\./],
-  [
-    /^packages\/website\/src\/App\.tsx$/,
-    /"https:\/\/github\.com\/anomalyco\/opentunnel"|"https:\/\/opentunnel\.xyz"|>opentunnel<\/a>|>github\.com\/anomalyco\/opentunnel<\/a>|>opentunnel\.xyz<\/a>|shuvtunnel is opentunnel by anomaly/,
-  ],
+  [/^index\.html$/, /slopfork of opentunnel\./],
+  [/^packages\/website\/src\/App\.tsx$/, /"https:\/\/github\.com\/anomalyco\/opentunnel"|>opentunnel<\/a>/],
 ];
-const tracked = (await $`git ls-files -z --cached --others --exclude-standard`.cwd(root).text())
-  .split("\0")
-  .filter((path) => path && existsSync(join(root, path)));
-for (const path of tracked) {
-  const buffer = readFileSync(join(root, path));
-  if (buffer.includes(0)) continue;
-  const lines = buffer.toString("utf8").split("\n");
-  lines.forEach((line, index) => {
-    if (!retired.test(line)) return;
-    if (allowed.some(([file, pattern]) => file.test(path) && pattern.test(line))) return;
-    fail(`${path}:${index + 1}: retired upstream identity: ${line.trim()}`);
+const paths = (await $`git ls-files -z --cached --others --exclude-standard`.cwd(root).text()).split("\0");
+for (const path of new Set(paths.filter(path => path && existsSync(join(root, path))))) {
+  const bytes = readFileSync(join(root, path));
+  if (bytes.includes(0)) continue;
+  bytes.toString("utf8").split("\n").forEach((line, i) => {
+    if (retired.test(line) && !allowed.some(([file, pattern]) => file.test(path) && pattern.test(line))) {
+      failures.push(`${path}:${i + 1}: retired identity: ${line.trim()}`);
+    }
   });
 }
 
 if (process.argv.includes("--dist")) {
-  const bundle = "packages/cli/dist/index.js";
-  if (!existsSync(join(root, bundle))) fail(`${bundle}: missing; build the CLI first`);
+  const workerPath = ".cloudflare/output/v0/workers/default/worker.config.json";
+  if (!existsSync(join(root, workerPath))) failures.push(`${workerPath}: missing; build the Worker first`);
   else {
-    const text = read(bundle);
-    if (retired.test(text)) fail(`${bundle}: distributable exposes retired upstream identity`);
-    for (const needle of ['"shuvtunnel"', "https://shuv.zip"]) {
-      if (!text.includes(needle)) fail(`${bundle}: missing ${needle}`);
-    }
+    const worker = json(workerPath);
+    equal("built production Worker", worker.name, "opentunnel-shuv");
+    equal("built Workflow", worker.env?.CERTIFICATES?.name, "opentunnel-shuv-certificates");
+    equal("built DO owner", worker.env?.TUNNELS?.worker, "opentunnel-shuv");
+    equal("built domain", worker.env?.SHUVTUNNEL_DOMAIN?.value, "shuv.zip");
+    equal("built route", worker.triggers, [{ type: "fetch", pattern: "shuv.zip/*", zone: "shuv.zip" }]);
   }
-  const site = "packages/website/dist/index.html";
-  if (!existsSync(join(root, site))) fail(`${site}: missing; build the website first`);
+  const site = ".cloudflare/output/v0/workers/default/assets/index.html";
+  if (!existsSync(join(root, site))) failures.push(`${site}: missing; build the website first`);
   else {
-    const text = read(site);
-    if (!text.includes("slopfork of opentunnel.")) fail(`${site}: missing upstream attribution`);
-    if (retired.test(text.replaceAll("slopfork of opentunnel.", ""))) {
-      fail(`${site}: distributable exposes retired upstream identity`);
-    }
-    if (!text.includes("<title>shuvtunnel")) fail(`${site}: title is not shuvtunnel`);
+    contains(site, "<title>shuvtunnel");
+    contains(site, "slopfork of opentunnel.");
+    if (retired.test(read(site).replaceAll("slopfork of opentunnel.", ""))) failures.push(`${site}: retired identity`);
+  }
+  // Binary packaging is a separate CI job; validate generated packages when present.
+  for (const path of new Bun.Glob("packages/cli/dist/*/package.json").scanSync({ cwd: root })) {
+    const manifest = json(path);
+    if (manifest.name !== "shuvtunnel" && !/^@shuvtunnel\/cli-(linux|darwin)-(x64|arm64)$/.test(manifest.name)) failures.push(`${path}: unexpected package name`);
+    equal(`${path} version`, manifest.version, cli.version);
+    if (retired.test(read(path))) failures.push(`${path}: retired identity`);
   }
 }
-
 if (failures.length) {
-  console.error(`Fork boundary check failed (${failures.length}):`);
-  for (const failure of failures) console.error(`  - ${failure}`);
+  console.error(`Fork boundary check failed (${failures.length}):\n${failures.join("\n")}`);
   process.exit(1);
 }
 console.log(`Fork boundary check passed${process.argv.includes("--dist") ? " (including dist)" : ""}.`);

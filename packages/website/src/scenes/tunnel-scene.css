@@ -38,4 +38,17 @@
   .tunnel-scene .node-card-icon svg { width: 20px; height: 20px; }
   .tunnel-routes { gap: 14px; padding: 14px; }
   .tunnel-machine .tunnel-machine-label { left: auto; right: 0; white-space: nowrap; }
+  .tunnel-visitor .node-card-icon { opacity: calc(1 - var(--choosing, 0)); }
 }
+
+/* Your machine's left border is the gate: the apps sit back from it, leaving a straight run of wire through the
+   gate before it fans out. */
+.tunnel-machine .tunnel-routes { padding-left: 84px; }
+@container (max-width: 899px) { .tunnel-machine .tunnel-routes { padding-left: 64px; } }
+@container (max-width: 560px) { .tunnel-machine .tunnel-routes { padding-left: 28px; } }
+
+/* The sealed packet's canvas and the border membranes, over the wires. */
+.tunnel-cipher-canvas { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.tunnel-gate-field { position: absolute; z-index: 2; pointer-events: none; }
+/* When the app's shape is its slot on the wire, the card carries just the name; a phone's wordless card keeps the shape. */
+@container (min-width: 561px) { .tunnel-routes .node-card-icon { display: none; } }

@@ -1,23 +1,20 @@
-import "reflect-metadata";
-import { Effect, Layer, ServiceMap } from "effect";
-import {
-  Pkcs10CertificateRequestGenerator,
-  SubjectAlternativeNameExtension,
-} from "@peculiar/x509";
+import { Cause, Effect, Layer, Queue, ServiceMap, Stream } from "effect";
 import { CSR } from "@shuvtunnel/protocol/csr";
 import { Tunnel } from "@shuvtunnel/protocol/tunnel";
 import { ShuvTunnelApiClient } from "./api.js";
+import { certificateRequest } from "./csr.js";
 import { ShuvTunnelClientError } from "./errors.js";
 import { ShuvTunnelStorage, type ShuvTunnelStorage as Storage } from "./storage.js";
 import type {
+  ShuvTunnelClientEvent,
+  ShuvTunnelConnection,
   ShuvTunnelEffectClient,
   ShuvTunnelIdentity,
   ShuvTunnelPendingIdentity,
   ShuvTunnelProfileOptions,
   ShuvTunnelProvisionStage,
-  ShuvTunnelRoute,
 } from "./types.js";
-import { connectBridge } from "./bridge.js";
+import { Tunnel as RunningTunnel, validateRoutes } from "./tunnel.js";
 
 const profileName = (options?: ShuvTunnelProfileOptions) => options?.profile ?? "default";
 const clientError = (message: string, cause: unknown) =>
@@ -46,7 +43,7 @@ export class ShuvTunnelClient extends ServiceMap.Service<
       ShuvTunnelClient,
       Effect.gen(function* () {
         const api = yield* ShuvTunnelApiClient;
-        const routesByProfile = new Map<string, ReadonlyArray<ShuvTunnelRoute>>();
+        const apiUrl = new URL(options.api ?? "https://shuv.zip");
 
         const get = Effect.fn("ShuvTunnelClient.tunnel.get")(function* (
           input?: ShuvTunnelProfileOptions,
@@ -65,6 +62,8 @@ export class ShuvTunnelClient extends ServiceMap.Service<
             params: { id: Tunnel.ID.makeUnsafe(options.pending.id) },
             payload: { csr: options.pending.csr as CSR.Raw },
           }).pipe(
+            // A resumed provision may already have an issuance in flight.
+            Effect.catchTag("CertificateInProgressError", () => Effect.void),
             Effect.mapError((cause) => clientError("Failed to start certificate issuance", cause)),
           );
 
@@ -119,18 +118,7 @@ export class ShuvTunnelClient extends ServiceMap.Service<
           });
           yield* Effect.sync(() => options.onProgress?.("generating-csr"));
           const csr = yield* Effect.tryPromise({
-            try: () =>
-              Pkcs10CertificateRequestGenerator.create({
-                name: `CN=${options.hostname}`,
-                extensions: [
-                  new SubjectAlternativeNameExtension([
-                    { type: "dns", value: options.hostname },
-                    { type: "dns", value: `*.${options.hostname}` },
-                  ]),
-                ],
-                signingAlgorithm: { name: "ECDSA", hash: "SHA-256" },
-                keys,
-              }),
+            try: () => certificateRequest(options.hostname, keys),
             catch: (cause) => clientError("Failed to generate certificate request", cause),
           });
           const exported = yield* Effect.tryPromise({
@@ -142,7 +130,7 @@ export class ShuvTunnelClient extends ServiceMap.Service<
             hostname: options.hostname,
             token: options.token,
             privateKey: privateKeyPem(exported),
-            csr: csr.toString(),
+            csr,
           };
           yield* storage.savePending(options.profile, pending);
           return yield* completePending({
@@ -154,7 +142,6 @@ export class ShuvTunnelClient extends ServiceMap.Service<
 
         const create = Effect.fn("ShuvTunnelClient.tunnel.create")(function* (
           input?: ShuvTunnelProfileOptions & {
-            readonly name?: string;
             readonly onProgress?: (stage: ShuvTunnelProvisionStage) => void;
           },
         ) {
@@ -173,7 +160,7 @@ export class ShuvTunnelClient extends ServiceMap.Service<
 
           yield* Effect.sync(() => input?.onProgress?.("creating-tunnel"));
           const created = yield* api.client.tunnel["tunnel.create"]({
-            payload: { name: input?.name },
+            payload: {},
           }).pipe(Effect.mapError((cause) => clientError("Failed to create tunnel", cause)));
           return yield* provision({
             profile,
@@ -185,7 +172,7 @@ export class ShuvTunnelClient extends ServiceMap.Service<
         });
 
         const ensure = Effect.fn("ShuvTunnelClient.tunnel.ensure")(function* (
-          input?: ShuvTunnelProfileOptions & { readonly name?: string },
+          input?: ShuvTunnelProfileOptions,
         ) {
           const existing = yield* get(input);
           if (!existing) return yield* create(input);
@@ -195,7 +182,19 @@ export class ShuvTunnelClient extends ServiceMap.Service<
           }).pipe(
             Effect.mapError((cause) => clientError("Failed to read certificate", cause)),
           );
-          if (certificate.state.type !== "failed") return existing;
+          const state = certificate.state;
+          // The server renewed the certificate while this machine was offline.
+          if (state.type === "ready" && state.certificate !== existing.certificate) {
+            const renewed: ShuvTunnelIdentity = {
+              ...existing,
+              certificate: state.certificate,
+              chain: state.chain,
+              certificateExpiry: new Date(state.expiry),
+            };
+            yield* storage.save(profileName(input), renewed);
+            return renewed;
+          }
+          if (state.type !== "failed") return existing;
           return yield* provision({
             profile: profileName(input),
             id: Tunnel.ID.makeUnsafe(existing.id),
@@ -223,57 +222,8 @@ export class ShuvTunnelClient extends ServiceMap.Service<
           return yield* completePending({ profile, pending: value, onProgress: input?.onProgress });
         });
 
-        const listRoutes = Effect.fn("ShuvTunnelClient.route.list")(function* (
-          input?: ShuvTunnelProfileOptions,
-        ) {
-          const profile = profileName(input);
-          const identity = yield* storage.load(profile);
-          const routes = routesByProfile.get(profile) ?? [];
-          return routes.map((route) => ({
-            ...route,
-            hostname: identity ? `${route.name}.${identity.hostname}` : route.name,
-          }));
-        });
-
         const client: ShuvTunnelEffectClient = {
           profile: { list: storage.profiles },
-          route: {
-            list: listRoutes,
-            add: Effect.fn("ShuvTunnelClient.route.add")(function* (input) {
-              const profile = profileName(input);
-              const identity = yield* ensure(input);
-              const routes = routesByProfile.get(profile) ?? [];
-              if (routes.some((route) => route.name === input.name)) {
-                return yield* new ShuvTunnelClientError({
-                  message: `Route '${input.name}' already exists in profile '${profile}'`,
-                });
-              }
-              if (input.target.includes("://")) {
-                return yield* new ShuvTunnelClientError({
-                  message: "Route targets must use host:port",
-                });
-              }
-              const target = new URL(`tcp://${input.target}`);
-              if (!target.hostname || !target.port) {
-                return yield* new ShuvTunnelClientError({ message: "Route targets must use host:port" });
-              }
-              const route: ShuvTunnelRoute = {
-                name: input.name,
-                hostname: `${input.name}.${identity.hostname}`,
-                target: input.target,
-              };
-              routesByProfile.set(profile, [...routes, route]);
-              return route;
-            }),
-            remove: Effect.fn("ShuvTunnelClient.route.remove")(function* (input) {
-              const profile = profileName(input);
-              const routes = routesByProfile.get(profile) ?? [];
-              routesByProfile.set(
-                profile,
-                routes.filter((route) => route.name !== input.name),
-              );
-            }),
-          },
           tunnel: {
             list: storage.list,
             get,
@@ -283,29 +233,62 @@ export class ShuvTunnelClient extends ServiceMap.Service<
             ensure,
             remove: Effect.fn("ShuvTunnelClient.tunnel.remove")(function* (input) {
               const profile = profileName(input);
-              // A tunnel whose certificate never completed has only a pending identity but still exists on the server.
-              const identity = (yield* storage.load(profile)) ?? (yield* storage.loadPending(profile));
+              const identity = yield* storage.load(profile);
               if (!identity) return;
               const authorized = yield* api.authorized(Tunnel.Token.makeUnsafe(identity.token));
               yield* authorized.tunnel["tunnel.remove"]({
                 params: { id: Tunnel.ID.makeUnsafe(identity.id) },
               }).pipe(
-                Effect.catchTag("TunnelNotFoundError", () => Effect.void),
                 Effect.mapError((cause) => clientError("Failed to remove tunnel", cause)),
               );
               yield* storage.remove(profile);
             }),
-            connect: (input) =>
-              Effect.gen(function* () {
-                const profile = profileName(input);
-                const identity = yield* ensure(input);
-                const configured = routesByProfile.get(profile) ?? [];
-                return yield* connectBridge({
-                  api: new URL(options.api ?? "https://shuv.zip"),
-                  identity,
-                  routes: configured,
-                });
-              }),
+            connect: Effect.fn("ShuvTunnelClient.tunnel.connect")(function* (input) {
+              yield* Effect.try({
+                try: () => validateRoutes(input.routes),
+                catch: (cause) => clientError(cause instanceof Error ? cause.message : "Invalid routes", cause),
+              });
+              const identity = yield* ensure(input);
+              const events = yield* Queue.unbounded<ShuvTunnelClientEvent, Cause.Done>();
+              const tunnel = yield* Effect.acquireRelease(
+                Effect.sync(() =>
+                  new RunningTunnel({
+                    api: apiUrl,
+                    identity,
+                    routes: input.routes,
+                    onEvent: (event) => {
+                      Queue.offerUnsafe(events, event);
+                      if (event.type === "stopped") Queue.endUnsafe(events);
+                    },
+                    onRenewed: (renewed) => {
+                      Effect.runFork(storage.save(profileName(input), renewed).pipe(Effect.ignore));
+                    },
+                  })
+                ),
+                (tunnel) =>
+                  Effect.promise(() => tunnel.close()).pipe(Effect.andThen(Queue.end(events))),
+              );
+              yield* Effect.tryPromise({
+                try: () => tunnel.ready,
+                catch: (cause) => clientError("Failed to connect tunnel", cause),
+              });
+              return {
+                tunnel: identity,
+                events: Stream.fromQueue(events),
+                status: Effect.sync(() => tunnel.getStatus()),
+                setRoutes: (routes) =>
+                  Effect.try({
+                    try: () => tunnel.setRoutes(routes),
+                    catch: (cause) =>
+                      clientError(cause instanceof Error ? cause.message : "Invalid routes", cause),
+                  }),
+                closed: Effect.tryPromise({
+                  try: () => tunnel.closed,
+                  catch: (cause) => clientError("Tunnel stopped", cause),
+                }),
+                close: Effect.promise(() => tunnel.close()),
+              } satisfies ShuvTunnelConnection;
+            }),
           },
         };
         return client;

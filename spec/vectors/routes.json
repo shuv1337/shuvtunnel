@@ -1,0 +1,10 @@
+[
+  { "hostname": "demo.shuv.zip", "sni": "demo.shuv.zip", "route": "@" },
+  { "hostname": "demo.shuv.zip", "sni": "api.demo.shuv.zip", "route": "api" },
+  { "hostname": "demo.shuv.zip", "sni": "API.Demo.Shuv.Zip", "route": "api" },
+  { "hostname": "demo.shuv.zip", "sni": "a.b.demo.shuv.zip", "route": null },
+  { "hostname": "demo.shuv.zip", "sni": "other.shuv.zip", "route": null },
+  { "hostname": "demo.shuv.zip", "sni": "xdemo.shuv.zip", "route": null },
+  { "hostname": "demo.shuv.zip", "sni": ".demo.shuv.zip", "route": null },
+  { "hostname": "demo.shuv.zip", "sni": "", "route": null }
+]

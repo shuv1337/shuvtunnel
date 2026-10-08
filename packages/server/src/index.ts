@@ -1,3 +1,4 @@
+import "reflect-metadata";
 import { concatBytes, parseClientHello } from "./tls-client-hello.js";
 import { env, waitUntil } from "cloudflare:workers";
 import { base64Url } from "./crypto.js";
@@ -69,7 +70,7 @@ async function routeTcp(client: TcpConnection): Promise<void> {
 
   if (!hostname) throw new Error("ClientHello exceeded inspection limit");
   const tunnelID = tunnelIDFromHostname(hostname, env.SHUVTUNNEL_DOMAIN);
-  if (!tunnelID) throw new Error("SNI is not a ShuvTunnel hostname");
+  if (!tunnelID) throw new Error("SNI is not an ShuvTunnel hostname");
 
   const metadata = base64Url(new TextEncoder().encode(alpn));
   const routed = env.TUNNELS.getByName(tunnelID).connect(`meta-${metadata}.${hostname}:443`, {

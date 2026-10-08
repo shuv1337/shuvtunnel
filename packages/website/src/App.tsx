@@ -7,20 +7,22 @@ import { Caption, Wordmark } from "./wordmark"
 import { Justified } from "./Justified"
 import { Ink } from "./Ink"
 import { Splatter } from "./Splatter"
+import signature from "./footer-signature.svg"
 
 const github = "https://github.com/shuv1337/shuvtunnel"
 const upstream = "https://github.com/anomalyco/opentunnel"
-const upstreamSite = "https://opentunnel.xyz"
 
 const installs = {
+  curl: "curl -fsSL https://shuv.zip/install | sh",
+  brew: "brew install shuv1337/tap/shuvtunnel",
+  arch: "yay -S shuvtunnel-bin",
   npm: "npm i -g shuvtunnel",
-  bun: "bun add -g shuvtunnel",
-  pnpm: "pnpm add -g shuvtunnel",
+  cargo: "cargo install shuvtunnel-cli",
 } as const
 type Manager = keyof typeof installs
 
 function Install() {
-  const [manager, setManager] = useState<Manager>("npm")
+  const [manager, setManager] = useState<Manager>("curl")
   return <div className="install">
     <div className="tabs" role="tablist">
       {(Object.keys(installs) as Manager[]).map(name => <button key={name} type="button" role="tab" aria-selected={manager === name} data-current={manager === name || undefined} onClick={() => setManager(name)}>{name}</button>)}
@@ -28,6 +30,7 @@ function Install() {
       <a href={upstream} target="_blank" rel="noopener">opentunnel</a>
     </div>
     <div className="command">$ {installs[manager]}</div>
+    <p className="fork-note">native release pending. <a href={`${github}#installation`}>build from source</a></p>
   </div>
 }
 
@@ -61,32 +64,29 @@ export function App() {
 
       <section className="usage">
         <h2>cli</h2>
-        <pre>{`$ shuvtunnel create\n`}{out("created f7a2mx4kq9vn.shuv.zip")}{`\n\n$ shuvtunnel route add opencode localhost:47365\n`}{out("added route opencode.f7a2mx4kq9vn.shuv.zip -> localhost:47365")}{`\n\n$ curl https://opencode.f7a2mx4kq9vn.shuv.zip\n`}{out("hello from localhost:47365")}</pre>
+        <pre>{`$ shuvtunnel route add opencode 47365\n`}{out("creating tunnel... tunnel is ready.\nadded route opencode → 127.0.0.1:47365\nhttps://opencode.f7a2mx4kq9vn.shuv.zip")}{`\n\n$ curl https://opencode.f7a2mx4kq9vn.shuv.zip\n`}{out("hello from localhost:47365")}</pre>
       </section>
 
       <section className="sdk">
         <h2>sdk</h2>
-        <pre>{`import { create } from "@shuvtunnel/client"
+        <pre>{`// bun add @shuvtunnel/client
+import { create } from "@shuvtunnel/client"
 
 const client = create()
-
-await client.route.add({
-  name: "opencode",
-  target: "localhost:47365",
+const connection = await client.tunnel.connect({
+  routes: { opencode: "127.0.0.1:47365" },
 })
 
-const connection = await client.tunnel.connect()
-
-console.log(connection.routes[0].hostname)
-`}{out("opencode.f7a2mx4kq9vn.shuv.zip")}</pre>
+console.log(\`https://opencode.\${connection.tunnel.hostname}\`)
+`}{out("https://opencode.f7a2mx4kq9vn.shuv.zip")}</pre>
       </section>
 
       <section className="how">
         <h2>how it works</h2>
         <ol className="steps">
-          <li><Justified text="shuvtunnel create reserves your hostname and generates a private key on your machine. the key never leaves it." /></li>
-          <li><Justified text="the cli sends a certificate request for that hostname. a certificate is issued and bound to your tunnel name. the relay only ever sees the public half." /></li>
-          <li><Justified text="a service on your machine opens an encrypted bridge to the relay." /></li>
+          <li><Justified text="your first route creates a tunnel: a random hostname, and a private key generated on your machine. the key never leaves it." /></li>
+          <li><Justified text="the cli sends a certificate request for that hostname. a certificate is issued and bound to your tunnel name. the relay only ever sees the public half, and renews the certificate for the same key before it expires." /></li>
+          <li><Justified text="a service on your machine keeps an encrypted bridge open to the relay. apps using the sdk share the same tunnel, each with its own routes." /></li>
           <li><Justified text="visitors hit your public url. the relay reads only the hostname from the tls handshake and forwards the encrypted stream through the bridge." /></li>
           <li><Justified text="your machine terminates tls with its private key and proxies the traffic to your local apps." /></li>
         </ol>
@@ -113,28 +113,17 @@ console.log(connection.routes[0].hostname)
           </div>
         </dl>
       </section>
-
       <section className="credits" id="credits">
         <h2>credits</h2>
-        <dl className="privacy-list">
-          <div>
-            <dt>this is a fork, not the original</dt>
-            <Justified as="dd" text="shuvtunnel is opentunnel by anomaly, renamed and pointed at shuv.zip. the blind tls design, the protocol, the cli, the sdk and this very page are their work. we just forked it and put a new name on it." />
-          </div>
-          <div>
-            <dt>what we actually added</dt>
-            <Justified as="dd" text="a new name, a relay that no longer falls over when you port scan it, some retries for a slow certificate authority, and whatever bugs came along for the ride." />
-          </div>
-          <div>
-            <dt>no affiliation</dt>
-            <Justified as="dd" text="anomaly doesn't run, endorse or support shuvtunnel. if something breaks here, that's on us, so please don't file it upstream." />
-          </div>
-          <div>
-            <dt>want the real thing?</dt>
-            <dd className="credits-links"><a href={upstream} target="_blank" rel="noopener">github.com/anomalyco/opentunnel</a><a href={upstreamSite} target="_blank" rel="noopener">opentunnel.xyz</a></dd>
-          </div>
-        </dl>
+        <p>shuvtunnel is a fork of <a href={upstream}>opentunnel</a> by anomaly. the design, protocol, clients and website come from upstream; we maintain the fork identity and shuv.zip deployment.</p>
+        <p>anomaly does not run, endorse or support shuvtunnel. report fork issues on <a href={github}>our github</a>.</p>
       </section>
     </main>
+    <footer className="site-footer">
+      <div className="copyright">
+        <img src={signature} alt="" aria-hidden="true" width={163} height={64} />
+        <p>original work ©2026 <a href="https://anoma.ly">anomaly</a>. fork maintained by <a href="https://github.com/shuv1337">shuv1337</a>.</p>
+      </div>
+    </footer>
   </div>
 }

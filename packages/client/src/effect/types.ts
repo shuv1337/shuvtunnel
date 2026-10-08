@@ -15,11 +15,8 @@ export type ShuvTunnelProvisionStage =
   | "saving-identity"
   | "ready";
 
-export interface ShuvTunnelRoute {
-  readonly name: string;
-  readonly hostname: string;
-  readonly target: string;
-}
+/** Route name (`@` for the tunnel hostname, or a subdomain label) to `host:port`. */
+export type ShuvTunnelRoutes = Readonly<Record<string, string>>;
 
 export interface ShuvTunnelIdentity {
   readonly id: string;
@@ -45,33 +42,43 @@ export interface ShuvTunnelStoredTunnel {
 }
 
 export type ShuvTunnelClientEvent =
-  | { readonly type: "connected" }
-  | { readonly type: "disconnected"; readonly reason?: string }
-  | { readonly type: "route-open"; readonly route: string; readonly connection: number }
-  | { readonly type: "route-close"; readonly route: string; readonly connection: number };
+  | { readonly type: "connecting"; readonly attempt: number }
+  | { readonly type: "connected"; readonly session: string; readonly routes: ReadonlyArray<string> }
+  | { readonly type: "disconnected"; readonly reason: string }
+  | { readonly type: "reconnecting"; readonly attempt: number; readonly delayMs: number }
+  | { readonly type: "connection-opened"; readonly conn: number; readonly route: string; readonly peer: string }
+  | { readonly type: "connection-closed"; readonly conn: number; readonly route: string; readonly error?: string }
+  | { readonly type: "certificate-renewed"; readonly expiry: string }
+  | { readonly type: "stopped"; readonly error?: string };
+
+export interface ShuvTunnelStatus {
+  readonly state: "waiting-routes" | "connecting" | "connected" | "reconnecting" | "stopped";
+  readonly hostname: string;
+  readonly routes: ShuvTunnelRoutes;
+  readonly session?: string;
+  readonly connections: number;
+  readonly lastError?: string;
+  /** Unix milliseconds of the last successful attach. */
+  readonly connectedAt?: number;
+}
+
+export interface ShuvTunnelConnectOptions extends ShuvTunnelProfileOptions {
+  readonly routes: ShuvTunnelRoutes;
+}
 
 export interface ShuvTunnelConnection {
   readonly tunnel: ShuvTunnelIdentity;
-  readonly routes: ReadonlyArray<ShuvTunnelRoute>;
   readonly events: Stream.Stream<ShuvTunnelClientEvent>;
-  readonly closed: Effect.Effect<void>;
+  readonly status: Effect.Effect<ShuvTunnelStatus>;
+  readonly setRoutes: (routes: ShuvTunnelRoutes) => Effect.Effect<void, ShuvTunnelError>;
+  /** Completes when the tunnel stops after a fatal error or is closed. */
+  readonly closed: Effect.Effect<void, ShuvTunnelError>;
   readonly close: Effect.Effect<void>;
 }
 
 export interface ShuvTunnelEffectClient {
   readonly profile: {
     readonly list: () => Effect.Effect<ReadonlyArray<string>, ShuvTunnelError>;
-  };
-  readonly route: {
-    readonly list: (
-      options?: ShuvTunnelProfileOptions,
-    ) => Effect.Effect<ReadonlyArray<ShuvTunnelRoute>, ShuvTunnelError>;
-    readonly add: (
-      options: ShuvTunnelProfileOptions & { readonly name: string; readonly target: string },
-    ) => Effect.Effect<ShuvTunnelRoute, ShuvTunnelError>;
-    readonly remove: (
-      options: ShuvTunnelProfileOptions & { readonly name: string },
-    ) => Effect.Effect<void, ShuvTunnelError>;
   };
   readonly tunnel: {
     readonly list: () => Effect.Effect<ReadonlyArray<ShuvTunnelStoredTunnel>, ShuvTunnelError>;
@@ -88,18 +95,22 @@ export interface ShuvTunnelEffectClient {
     ) => Effect.Effect<ShuvTunnelIdentity | undefined, ShuvTunnelError>;
     readonly create: (
       options?: ShuvTunnelProfileOptions & {
-        readonly name?: string;
         readonly onProgress?: (stage: ShuvTunnelProvisionStage) => void;
       },
     ) => Effect.Effect<ShuvTunnelIdentity, ShuvTunnelError>;
     readonly ensure: (
-      options?: ShuvTunnelProfileOptions & { readonly name?: string },
+      options?: ShuvTunnelProfileOptions,
     ) => Effect.Effect<ShuvTunnelIdentity, ShuvTunnelError>;
     readonly remove: (
       options?: ShuvTunnelProfileOptions,
     ) => Effect.Effect<void, ShuvTunnelError>;
+    /**
+     * Starts forwarding routes for the profile's tunnel, creating it if
+     * needed. Succeeds once the bridge first attaches and keeps reconnecting
+     * until the scope closes.
+     */
     readonly connect: (
-      options?: ShuvTunnelProfileOptions & { readonly signal?: AbortSignal },
+      options: ShuvTunnelConnectOptions,
     ) => Effect.Effect<ShuvTunnelConnection, ShuvTunnelError, Scope.Scope>;
   };
 }

@@ -42,19 +42,21 @@ h2 { margin: 0 0 var(--s3); font-size: clamp(20px, 3.2vw, 27px); font-weight: 50
 .description { margin: var(--s4) 0 0; font-size: clamp(15px, 2vw, 18px); line-height: 1.7; }
 
 .install { margin-top: var(--s3); font-size: clamp(14px, 2vw, 17px); line-height: 1.7; }
-.tabs { display: flex; gap: 24px; margin-bottom: var(--s1); }
+.tabs { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-bottom: var(--s1); }
 .tabs button { appearance: none; margin: 0; padding: 0; border: 0; background: none; color: #fff; font: inherit; cursor: pointer; opacity: .45; }
 .tabs a { opacity: .45; }
 .tabs button:hover, .tabs a:hover, .tabs button[data-current] { opacity: 1; }
 .command { overflow-x: auto; white-space: nowrap; }
 
-.usage, .sdk, .how, .privacy, .credits { margin-top: var(--s5); }
+.usage, .sdk, .how, .privacy { margin-top: var(--s5); }
 
 pre { margin: 0; overflow-x: auto; color: #fff; font: clamp(14px, 2vw, 17px)/1.8 var(--font-text), monospace; }
 .output { opacity: .55; }
 
-.steps { display: grid; margin: 0; padding: 0; gap: var(--s3); list-style: none; counter-reset: step; }
-.steps li { display: grid; grid-template-columns: 44px 1fr; counter-increment: step; font-size: clamp(14px, 2vw, 17px); line-height: 1.7; }
+/* Tracks floored at zero: justified lines don't wrap, so a content-sized track would grow to fit them and never
+   give the width back. */
+.steps { display: grid; grid-template-columns: minmax(0, 1fr); margin: 0; padding: 0; gap: var(--s3); list-style: none; counter-reset: step; }
+.steps li { display: grid; grid-template-columns: 44px minmax(0, 1fr); counter-increment: step; font-size: clamp(14px, 2vw, 17px); line-height: 1.7; }
 .steps li::before { content: "0" counter(step); opacity: .45; }
 .steps p { margin: 0; }
 /* Lines set by justice: one per span, never rewrapped by the browser. */
@@ -63,10 +65,6 @@ pre { margin: 0; overflow-x: auto; color: #fff; font: clamp(14px, 2vw, 17px)/1.8
 .privacy-list { display: grid; grid-template-columns: minmax(0, 1fr); margin: 0; gap: var(--s3); }
 .privacy-list dt { margin-bottom: var(--s1); font-size: clamp(14px, 2vw, 17px); line-height: 1.7; }
 .privacy-list dd { margin: 0; font-size: clamp(14px, 2vw, 17px); line-height: 1.7; opacity: .55; }
-.credits-links { display: flex; flex-wrap: wrap; gap: 8px 24px; }
-.credits-links a, .fork-note a { text-decoration: underline; text-underline-offset: 3px; }
-
-.fork-note { margin: var(--s2) 0 0; font-size: clamp(14px, 2vw, 17px); line-height: 1.7; opacity: .55; }
 
 /* The diagram takes the old drawing's slot and may run a little wider than the column, centred on it. */
 .diagram-wrap { --bleed: min(940px, 100vw - 48px); width: var(--bleed); margin: var(--s4) 0 0 calc((100% - var(--bleed)) / 2); }
@@ -77,3 +75,16 @@ pre { margin: 0; overflow-x: auto; color: #fff; font: clamp(14px, 2vw, 17px)/1.8
   /* The caption spans the whole row under the lockup, still justified, at a size that reads. */
   h1 { grid-column: 1 / -1; font-size: 11px; }
 }
+/* The narrowest phones: the tabs close up to span the column rather than run off its end. */
+@media (max-width: 380px) { .tabs { justify-content: space-between; gap: 12px; } }
+
+/* The Anomaly copyright, as on the opencode console: the signature sits faintly behind the line, both centred. */
+.site-footer { display: flex; justify-content: center; padding: 0 0 var(--s4); }
+.copyright { position: relative; color: #909090; font: 400 13px/24px var(--font-text), monospace; }
+.copyright img { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+.copyright p { position: relative; margin: 0; }
+.copyright a { color: inherit; text-decoration: underline rgba(255, 255, 255, .2); text-underline-offset: 2px; }
+.fork-note { font-size: 11px; line-height: 1.75; color: #909090; margin: var(--s2) 0 0; }
+.fork-note a, .credits a { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
+.credits { margin-top: var(--s5); }
+.credits p { font-size: 12px; line-height: 1.8; }

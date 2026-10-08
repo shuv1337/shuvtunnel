@@ -1,117 +1,105 @@
 # ShuvTunnel CLI
 
-The CLI manages one tunnel identity and multiple subdomain routes per profile.
-The default profile is named `default`.
+The `shuvtunnel` CLI manages one tunnel identity and a set of subdomain routes
+per profile, and runs a background service that keeps them connected. It is a
+native binary written in Rust (`crates/shuvtunnel-cli`); this npm package is a
+small launcher that runs the prebuilt binary for your platform.
+
+These install channels require the fork release setup in [FORK.md](../../FORK.md#release-setup).
+Before the native release is published, build with `cargo install --path crates/shuvtunnel-cli --locked`
+from the repository root. npm 0.1.0 is the previous TypeScript CLI.
+
+```bash
+curl -fsSL https://shuv.zip/install | sh
+brew install shuv1337/tap/shuvtunnel
+yay -S shuvtunnel-bin
+npm install -g shuvtunnel
+cargo install shuvtunnel-cli
+```
+
+Prebuilt binaries are published for Linux and macOS on x64 and arm64.
 
 ## Commands
 
-Create a tunnel and manage its route configuration:
-
 ```bash
-shuvtunnel create
-shuvtunnel info
-shuvtunnel route add api 127.0.0.1:3000
-shuvtunnel route add admin 127.0.0.1:4000
-shuvtunnel route list
-shuvtunnel serve
-shuvtunnel service status
-shuvtunnel service restart
-shuvtunnel service stop
-shuvtunnel service start
+shuvtunnel route add api 3000            # api.<hostname> → 127.0.0.1:3000, brings the tunnel up
+shuvtunnel route add @ 127.0.0.1:8080    # the hostname itself
 shuvtunnel route remove api
+shuvtunnel route list
+shuvtunnel status                        # tunnel, routes, and connection
+shuvtunnel up                            # connect: create the tunnel if needed, start the service
+shuvtunnel down                          # disconnect: stop the service
+shuvtunnel serve                         # run in the foreground (containers, debugging)
+shuvtunnel delete --yes                  # delete the tunnel for good, losing its hostname
 ```
 
-Commands use the `default` profile unless another profile is selected:
+Every command takes `--profile <name>` (or `SHUVTUNNEL_PROFILE`) and defaults to
+the `default` profile. A profile is one tunnel, so one URL per device is the
+norm; apps using `@shuvtunnel/client` add their own routes to the same tunnel.
 
-```bash
-shuvtunnel --profile work create --name my-workstation
-shuvtunnel --profile work info
-shuvtunnel --profile work route add api 127.0.0.1:3000
-shuvtunnel --profile work route list
-```
+## Background service
 
-Each profile owns one tunnel identity and set of subdomain-to-process routes.
-`shuvtunnel info` reads the selected profile's existing local identity and shows
-its tunnel ID, hostname and URL, certificate expiry, and configured route count.
-It does not create a tunnel when the profile has no identity.
-Path routing is intentionally not supported. Every command ensures a background
-service is running for the selected profile. Configuration changes signal that
-process to reload and reconnect. `shuvtunnel serve` is a blocking command that
-runs the service in the foreground for supervision and debugging;
-`shuvtunnel service start` starts it in the background.
+`up` (and `route add`) creates the tunnel if needed and starts the background
+service. Where systemd (Linux) or launchd (macOS) is available, the service is
+registered to start at login as `shuvtunnel-<profile>.service` or
+`zip.shuv.<profile>`; elsewhere, such as in containers, it runs as a
+plain background process until the next reboot. `down` stops it and removes
+the registration.
 
-## XDG Layout
+The service reconnects with backoff, applies route edits (including hand
+edits to the config file) within a few seconds, and picks up certificates the
+server renews without dropping connections. Its log is shown by
+`shuvtunnel status`.
+
+## Files
 
 Configuration is declarative, contains no credentials, and is safe to commit to
-a dotfiles repository:
-
-```text
-$XDG_CONFIG_HOME/shuvtunnel/
-  default.toml
-  work.toml
-  personal.toml
-```
-
-The config filename is the profile name. For example, `work.toml` maps to the
-`work` data, state, and runtime locations.
-
-Example configuration:
+a dotfiles repository. The filename is the profile name:
 
 ```toml
+# $XDG_CONFIG_HOME/shuvtunnel/default.toml
 [routes]
 api = "127.0.0.1:3000"
-admin = "127.0.0.1:4000"
+"@" = "127.0.0.1:8080"
 ```
 
-Generated identity and credentials are stored separately and must not be
-committed:
+Generated identity and credentials are stored separately, readable only by
+you, and must not be committed. This layout is shared with
+`@shuvtunnel/client`:
 
 ```text
-$XDG_DATA_HOME/shuvtunnel/default/
-  tunnel.json
-  token
-  private-key.pem
-  certificate.pem
-  chain.pem
+$XDG_DATA_HOME/shuvtunnel/<profile>/
+  tunnel.json  token  private-key.pem  certificate.pem  chain.pem
+  pending.json        (only while certificate verification is pending)
 ```
 
-During certificate verification, `pending.json`, `token`, and
-`private-key.pem` are persisted in the profile directory. The background
-service resumes that pending CSR if `shuvtunnel create` is interrupted and
-removes `pending.json` after the certificate is ready.
-
-The profile directory must use `0700` permissions. The token and private key
-must use `0600` permissions.
-
-Persistent operational state belongs under:
+Runtime state:
 
 ```text
-$XDG_STATE_HOME/shuvtunnel/default/
-  daemon.log
-  last-error.json
+$XDG_STATE_HOME/shuvtunnel/<profile>/daemon.log
+$XDG_STATE_HOME/shuvtunnel/<profile>/last-error.json
+$XDG_RUNTIME_DIR/shuvtunnel/<profile>.sock   control socket
+$XDG_RUNTIME_DIR/shuvtunnel/<profile>.lock   single-instance lock
 ```
 
-Process coordination belongs under:
+Without XDG variables, the defaults are `~/.config`, `~/.local/share`, and
+`~/.local/state`.
 
-```text
-$XDG_RUNTIME_DIR/shuvtunnel/
-  default.sock
-  default.lock
-```
+## Development
 
-When the XDG variables are absent, use the standard defaults:
+From the repository root, `bun run shuvtunnel -- info` runs the CLI with Cargo.
 
-```text
-~/.config/shuvtunnel/default.toml
-~/.local/share/shuvtunnel/default/
-~/.local/state/shuvtunnel/default/
-```
+Releases follow the same pattern as other Anomaly CLIs: CI builds one binary
+per platform into `dist/cli-<os>-<arch>/bin/shuvtunnel`, then:
 
-In short:
+- `script/publish.ts` publishes each `@shuvtunnel/cli-<os>-<arch>` package and
+  the `shuvtunnel` launcher with those packages as `optionalDependencies`;
+- `script/release.ts` creates the GitHub release with one tarball per platform
+  (used by the install script at `packages/website/public/install`), updates
+  the formula in `shuv1337/homebrew-tap` (with that repository's deploy key,
+  the org-level `HOMEBREW_TAP_KEY` secret), and pushes the `shuvtunnel-bin`
+  AUR package (the org-level `AUR_KEY` secret);
+- `script/crates.ts` publishes the `shuvtunnel` and `shuvtunnel-cli` crates
+  through crates.io trusted publishing.
 
-```text
-config  = desired routes and preferences
-data    = tunnel identity and credentials
-state   = logs and observed runtime state
-runtime = current process coordination
-```
+Steps without credentials are skipped.

@@ -1,5 +1,6 @@
-import { pulseEase, type PulseEase } from "../graphics/Pulse"
+import type { PulseEase } from "../graphics/Pulse"
 import { tunnelLegs, tunnelTravel } from "./tunnelScore"
+import { flightTuning } from "./flightTuning"
 
 // One leg's flight as the sound hears it: when the dot enters and leaves the relay, and how fast it is
 // moving at any scene time. Pure, so the offline track render can build the same flights from the
@@ -7,6 +8,10 @@ import { tunnelLegs, tunnelTravel } from "./tunnelScore"
 
 export type Crossing = {
   enter: number; leave: number
+  /** The crawl through your machine's border, in scene seconds: where the bytes are opened. */
+  gate: { start: number; end: number }
+  /** The crawl out through the browser's border, in scene seconds: where they are sealed. */
+  exit: { start: number; end: number }
   /** How the flight spends its time along the path. */
   ease: PulseEase
   /** The measured path fractions this crossing was built from, so the offline track render
@@ -16,17 +21,28 @@ export type Crossing = {
   speedAt: (time: number) => number
 }
 
-/** How much of the leg's path the relay occupies, as fractions. */
-export type LegFractions = { enter: number; leave: number }
+/** How much of the leg's path the relay occupies, as fractions; and where the borders are,
+ * with the stretch of path over which the bytes slow into each and pull away. */
+export type LegFractions = { enter: number; leave: number; gate?: number; gateWidth?: number; exit?: number; exitWidth?: number }
+
+/** How much the bytes slow as they pass through each border: the dip in speed (0 none, 1 a stop) and how far either
+ * side of the border it reaches, in CSS pixels. */
+export const borderCrawl = {
+  get gate() { const v = flightTuning.get(); return { depth: v.gateDepth, reach: v.gateReach } },
+  get exit() { const v = flightTuning.get(); return { depth: v.exitDepth, reach: v.exitReach } },
+}
 
 export function legCrossing(index: number, fractions: LegFractions): Crossing {
-  const ease = viscousFlight(fractions.enter, fractions.leave, 5)
+  const flight = tunnelTravel / 1000, tuned = flightTuning.get()
+  const gate = { at: fractions.gate ?? .85, width: fractions.gateWidth ?? .06, depth: borderCrawl.gate.depth }
+  const exit = { at: fractions.exit ?? .007, width: fractions.exitWidth ?? .028, depth: borderCrawl.exit.depth }
+  const ease = viscousFlight(fractions.enter, fractions.leave, tuned.drag, [gate, exit], softEase(tuned.pace), tuned.rush)
   const { send } = tunnelLegs[index]!
-  const flight = tunnelTravel / 1000
   const enter = send + ease.inverse(fractions.enter) * flight, leave = send + ease.inverse(fractions.leave) * flight
   const h = 1 / 512
+  const span = (c: { at: number; width: number }) => ({ start: send + ease.inverse(Math.max(0, c.at - c.width)) * flight, end: send + ease.inverse(Math.min(1, c.at + c.width)) * flight })
   return {
-    enter, leave, ease, fractions: { enter: fractions.enter, leave: fractions.leave },
+    enter, leave, ease, fractions: { ...fractions }, gate: span(gate), exit: span(exit),
     speedAt: time => {
       const u = (time - send) / flight
       if (u <= 0 || u >= 1) return 0
@@ -39,7 +55,7 @@ export function legCrossing(index: number, fractions: LegFractions): Crossing {
  * speed, slows smoothly over the first stretch inside, crawls, then builds speed hard through the back half and
  * leaves faster than it came, bleeding the excess off along the next run of wire. Speed is a smooth profile over
  * path distance, integrated into a table; no kinks. */
-export function viscousFlight(from: number, to: number, drag: number): PulseEase {
+export function viscousFlight(from: number, to: number, drag: number, crawls: readonly { at: number; width: number; depth: number }[], outer: PulseEase, rush: number): PulseEase {
   const N = 1024
   const span = to - from, crawl = 1 / drag
   const clamp = (x: number) => Math.max(0, Math.min(1, x))
@@ -49,12 +65,14 @@ export function viscousFlight(from: number, to: number, drag: number): PulseEase
     const building = Math.pow(clamp((u - .3) / .7), 3)
     const inside = slowing * (1 - building)
     // Leaves at nearly twice wire speed; the surplus decays over the following stretch of path.
-    const surplus = u <= 1 ? .9 * Math.pow(clamp((u - .5) / .5), 2) : .9 * Math.exp(-(p - to) / (span * .6))
+    const surplus = u <= 1 ? rush * Math.pow(clamp((u - .5) / .5), 2) : rush * Math.exp(-(p - to) / (span * .6))
     return 1 - (1 - crawl) * inside + surplus
   }
   // Cumulative time over distance, normalised to 1.
   const times = new Float64Array(N + 1)
-  for (let i = 1; i <= N; i++) times[i] = times[i - 1]! + 1 / speed((i - .5) / N) / N
+  // Each border slows the bytes smoothly: speed dips (by `depth`) under a bell `width` wide either side of it.
+  const slowed = (p: number) => crawls.reduce((s, c) => s * (1 - c.depth * Math.exp(-(((p - c.at) / c.width) ** 2))), speed(p))
+  for (let i = 1; i <= N; i++) times[i] = times[i - 1]! + 1 / slowed((i - .5) / N) / N
   const total = times[N]!
   for (let i = 0; i <= N; i++) times[i]! /= total
   const timeAt = (p: number) => { const x = Math.max(0, Math.min(1, p)) * N, i = Math.floor(x), f = x - i; return i >= N ? 1 : times[i]! + (times[i + 1]! - times[i]!) * f }
@@ -64,6 +82,16 @@ export function viscousFlight(from: number, to: number, drag: number): PulseEase
     const f = (u - times[low]!) / Math.max(1e-9, times[high]! - times[low]!)
     return (low + f) / N
   }
-  return { at: time => distanceAt(pulseEase.at(time)), inverse: distance => pulseEase.inverse(timeAt(distance)) }
+  return { at: time => distanceAt(outer.at(time)), inverse: distance => outer.inverse(timeAt(distance)) }
+}
+
+/** A gentle ease for flights that start already moving: `pace` of even speed blended with a cubic in-out (so it
+ * starts at `pace` of the mean speed). */
+export function softEase(pace: number): PulseEase {
+  const curve = (t: number) => (1 - pace) * (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2) + pace * t
+  return {
+    at: t => curve(Math.max(0, Math.min(1, t))),
+    inverse: d => { let low = 0, high = 1; for (let i = 0; i < 30; i++) { const mid = (low + high) / 2; if (curve(mid) < d) low = mid; else high = mid } return (low + high) / 2 },
+  }
 }
 const smooth = (x: number) => { const t = Math.max(0, Math.min(1, x)); return t * t * (3 - 2 * t) }

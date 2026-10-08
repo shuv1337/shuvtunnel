@@ -1,6 +1,6 @@
 {
   "name": "@shuvtunnel/server",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -9,10 +9,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "cf-typegen": "wrangler types worker-configuration.d.ts",
-    "build": "wrangler types worker-configuration.d.ts && tsc -p tsconfig.json && wrangler deploy --dry-run"
+    "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "@shuvtunnel/protocol": "workspace:*",
@@ -24,7 +21,6 @@
   },
   "devDependencies": {
     "@typescript/native-preview": "catalog:",
-    "typescript": "catalog:",
-    "wrangler": "catalog:"
+    "typescript": "catalog:"
   }
 }

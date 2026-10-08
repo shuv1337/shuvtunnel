@@ -1,0 +1,46 @@
+#!/bin/sh
+# Installs the shuvtunnel CLI.
+#
+#   curl -fsSL https://shuv.zip/install | sh
+#
+# SHUVTUNNEL_VERSION   version to install (default: latest)
+# SHUVTUNNEL_INSTALL   install directory (default: ~/.local/bin)
+set -eu
+
+repo="shuv1337/shuvtunnel"
+
+case "$(uname -s)" in
+  Linux) os="linux" ;;
+  Darwin) os="darwin" ;;
+  *) echo "shuvtunnel: unsupported operating system $(uname -s)" >&2; exit 1 ;;
+esac
+
+case "$(uname -m)" in
+  x86_64 | amd64) arch="x64" ;;
+  arm64 | aarch64) arch="arm64" ;;
+  *) echo "shuvtunnel: unsupported architecture $(uname -m)" >&2; exit 1 ;;
+esac
+
+if [ -n "${SHUVTUNNEL_VERSION:-}" ]; then
+  url="https://github.com/$repo/releases/download/v${SHUVTUNNEL_VERSION#v}/shuvtunnel-$os-$arch.tar.gz"
+else
+  url="https://github.com/$repo/releases/latest/download/shuvtunnel-$os-$arch.tar.gz"
+fi
+
+dir="${SHUVTUNNEL_INSTALL:-$HOME/.local/bin}"
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+echo "Downloading shuvtunnel for $os-$arch..."
+curl -fsSL "$url" | tar -xz -C "$tmp"
+mkdir -p "$dir"
+mv "$tmp/shuvtunnel" "$dir/shuvtunnel"
+chmod 755 "$dir/shuvtunnel"
+
+echo "Installed $("$dir/shuvtunnel" --version) to $dir/shuvtunnel"
+case ":$PATH:" in
+  *":$dir:"*) ;;
+  *) echo "Add $dir to your PATH to run shuvtunnel, for example:"
+     echo "  export PATH=\"$dir:\$PATH\"" ;;
+esac
+echo "Get started: shuvtunnel route add <name> <port>"
