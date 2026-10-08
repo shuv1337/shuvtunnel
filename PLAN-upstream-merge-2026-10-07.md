@@ -233,6 +233,24 @@ certificate, or local-profile compatibility project is required.
   certificate renewal, registry/trusted-publisher setup, tap/AUR ownership, route cleanup,
   deployment and publication. None are represented as completed by this source merge.
 
+## Rollout receipt — 2026-10-08
+
+- Pushed merge `ce59c1f` to `origin/master`. GitHub check run `37755931219`
+  passed, and publish run `37755931315` built all four Linux/macOS ARM64/x64 binaries.
+- Reassigned the existing `shuv.zip/*` route from `shuvtunnel-website` to
+  the combined production Worker, resolving the deployment conflict. Deploy run `37755931236`
+  passed on retry. The old website Worker is retained without that route.
+- Published GitHub release `v0.1.4` with the four CI-built native archives.
+  The live curl installer downloaded and ran the macOS ARM64 binary successfully.
+- A fresh test tunnel obtained a real certificate and forwarded HTTPS to a local
+  HTTP server through the published binary. Deleted the exact test tunnel afterward.
+  The isolated-XDG test used foreground serving after launchd did not start within
+  the CLI timeout; normal login-service behavior and certificate renewal are not verified.
+- Registry publication is blocked: crates.io rejected the workflow's trusted-publisher
+  exchange. No local npm login/token is available. Homebrew tap repository/key and
+  AUR credentials are also unconfigured. GitHub release publication succeeded separately;
+  the Publish workflow is still failed, not green.
+
 ## Done when
 
 The pinned upstream history is incorporated in full, fork-only differences are

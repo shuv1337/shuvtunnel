@@ -30,7 +30,7 @@ function Install() {
       <a href={upstream} target="_blank" rel="noopener">opentunnel</a>
     </div>
     <div className="command">$ {installs[manager]}</div>
-    <p className="fork-note">native release pending. <a href={`${github}#installation`}>build from source</a></p>
+    <p className="fork-note">use curl to install the native release. npm and homebrew publishing are pending.</p>
   </div>
 }
 
