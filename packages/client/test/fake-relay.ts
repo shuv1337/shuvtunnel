@@ -69,6 +69,8 @@ export class RelaySession {
   constructor(
     readonly socket: ServerWebSocket<SocketData>,
     readonly routes: ReadonlyArray<string>,
+    /** The `client` object the SDK sent on attach. */
+    readonly client: unknown,
   ) {}
 
   /** Opens a public connection and returns its plaintext side for a TLS client. */
@@ -184,13 +186,13 @@ export function fakeRelay(identity: { certificate: string; chain: string }): Fak
     websocket: {
       message(socket, message) {
         if (socket.data.session) return socket.data.session.onMessage(message);
-        const attach = JSON.parse(String(message)) as { token: string; routes: string[] };
+        const attach = JSON.parse(String(message)) as { token: string; routes: string[]; client: unknown };
         if (attach.token !== TOKEN || relay.attachError) {
           socket.send(JSON.stringify({ type: "attach_error", code: relay.attachError ?? "bad_token" }));
           socket.close(1008, "attach failed");
           return;
         }
-        const session = new RelaySession(socket, attach.routes);
+        const session = new RelaySession(socket, attach.routes, attach.client);
         socket.data.session = session;
         socket.send(
           JSON.stringify({

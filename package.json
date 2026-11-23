@@ -11,7 +11,7 @@
     "check:fork": "bun scripts/check-fork-boundary.ts",
     "shuvtunnel": "cargo run -q -p shuvtunnel-cli --",
     "changeset": "changeset",
-    "version": "changeset version && bun packages/cli/script/version.ts && bun install",
+    "version": "changeset version && bun packages/cli/script/version.ts && bun packages/client/script/version.ts && bun install",
     "release": "bun packages/cli/script/publish.ts && bun packages/client/script/publish.ts && bun packages/cli/script/crates.ts && bun packages/cli/script/release.ts",
     "test": "cargo test --workspace && bun run --filter '*' test"
   },
