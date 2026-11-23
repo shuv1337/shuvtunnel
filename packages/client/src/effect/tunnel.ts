@@ -10,8 +10,8 @@ import type {
   ShuvTunnelRoutes,
   ShuvTunnelStatus,
 } from "./types.js";
+import { VERSION } from "./version.js";
 
-const VERSION = "0.1.0";
 const MAX_CONNS = 256;
 /** Bytes queued on the WebSocket before local sockets stop being read. */
 const HIGH_WATER_MARK = 1024 * 1024;

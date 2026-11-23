@@ -3,6 +3,7 @@ import type * as Tls from "node:tls";
 import { create, ShuvTunnelStorage, type ShuvTunnelClientEvent, type ShuvTunnelPromiseClient } from "../src/promise/index.js";
 import { X509Certificate } from "node:crypto";
 import { echoServer, fakeRelay, HOSTNAME, renewedCertificate, testIdentity, type FakeRelay } from "./fake-relay.js";
+import pkg from "../package.json" with { type: "json" };
 
 let identity: Awaited<ReturnType<typeof testIdentity>>;
 let relay: FakeRelay;
@@ -143,6 +144,13 @@ describe("tunnel", () => {
     const socket = await session.connectTls(5, `api.${HOSTNAME}`, renewed);
     const presented = new X509Certificate(socket.getPeerCertificate().raw);
     expect(presented.fingerprint256).toBe(new X509Certificate(renewed).fingerprint256);
+    await connection.close();
+  });
+
+  test("attaches with the published package version", async () => {
+    const connection = await client.tunnel.connect({ routes: { api: echo.target } });
+    const session = await relay.next();
+    expect(session.client).toEqual({ version: pkg.version, max_conns: 256 });
     await connection.close();
   });
 });

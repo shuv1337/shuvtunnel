@@ -80,10 +80,12 @@ channels must be published before advertising them as available. Build locally w
 
 ## Upstream sync
 
-The upstream source is the repository linked above. Fetch its master branch by URL
-or configure a read-only upstream remote. Merge its commit history, resolve toward
-upstream behavior, and apply the identity mapping to every new runtime, manifest,
-fixture, distribution script, and deployment target. Do not restore legacy behavior.
+The upstream source is the repository linked above. Fetch its default branch by URL
+or configure a read-only upstream remote. That branch is `dev`, not `master`, as of
+2026-11-23; `git ls-remote --symref <url> HEAD` shows the current one. Merge its
+commit history, resolve toward upstream behavior, and apply the identity mapping to
+every new runtime, manifest, fixture, distribution script, and deployment target.
+Do not restore legacy behavior.
 
 Run `bun run check:fork` after changes. `bun run ready` checks source identity,
 generates Worker types, builds packages and unified assets, and checks distributables.

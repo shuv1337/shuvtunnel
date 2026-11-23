@@ -1,9 +1,6 @@
-- This codebase uses Effect v4 which is not yet documented yet
-- Do not rely on your own knowledge of Effect (e.g. don't use `Effect.gen` if the codebase uses a different pattern found in effect-smol)
-- When working on Effect-related code, use the explore agent to scan ~/dev/external/effect-smol
-- Use the explore agent to find relevant patterns, types, and implementations in the Effect codebase (e.g. search for similar services, layers, or effect composition patterns)
-- Copy and adapt patterns found in the external repository rather than using what you know about Effect v3 or earlier versions (e.g. use the type signatures and helper functions found in effect-smol, not what you remember from Effect v3 docs)
-- Always verify your implementation against the patterns found in the effect-smol repository (e.g. compare your service definition to similar ones in the external repo)
+- This codebase uses Effect v4 (`4.0.0-beta.42`, pinned by the root catalog and `bun.lock`), which is not documented yet.
+- Do not rely on your own knowledge of Effect (e.g. don't use `Effect.gen` if the codebase uses a different pattern).
+- The source of truth for Effect APIs is the pinned copy that `bun install` puts in each package, e.g. `packages/client/node_modules/effect/src`. Search it for similar services, layers, and composition patterns, and copy those. A newer Effect checkout elsewhere on disk has different APIs; do not copy from it.
 - `bunfig.toml` enables exact dependency versions.
 - Run commands in the most granular package you are testing, not at the root (e.g. `cd packages/protocol && bun run build` instead of `bun run ready` from the root).
 - Common commands: `bun run build` (build for production), `bun run test` (run tests).
@@ -32,3 +29,13 @@
 - Keep the deployed Worker name `opentunnel-shuv` and Workflow `opentunnel-shuv-certificates` unchanged.
 - Adopt upstream behavior without backward-compatibility layers; existing tunnels are test data.
 - Run `bun run check:fork` after upstream merges or rename work; `bun run ready` includes it.
+
+## Rules and what enforces them
+
+| Rule | Enforced by |
+| --- | --- |
+| Fork identity only: no upstream names outside the FORK.md exceptions, including in cherry-picked files such as changesets. | `bun run check:fork` (in `bun run ready`, CI `check` job) |
+| The Cargo workspace version equals `packages/cli` and both crate entries in `Cargo.lock`. | `bun run check:fork` |
+| Versions come from their manifest, never a hand-copied string: Rust uses `env!("CARGO_PKG_VERSION")`; the SDK's `src/effect/version.ts` is generated from its `package.json` by `bun run version`. | SDK test `attaches with the published package version`; publish scripts refuse stale workspace versions |
+| Wire messages, routes, names and frames match `spec/vectors` in both clients. | `packages/protocol/test/vectors.test.ts`, `crates/shuvtunnel/tests/vectors.rs` |
+| Effect code follows the pinned `effect` source in `node_modules`. | Nothing; judgment |
